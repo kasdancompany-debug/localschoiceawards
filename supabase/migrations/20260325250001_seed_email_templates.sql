@@ -1,0 +1,38 @@
+-- Seed email template registry (subjects; bodies rendered in React Email).
+
+insert into public.email_templates (key, name, subject_template, category, active) values
+  ('account.verify_email', 'Verify email', 'Verify your Locals Choice Awards email', 'transactional', true),
+  ('account.magic_link', 'Magic-link login', 'Your Locals Choice Awards sign-in link', 'transactional', true),
+  ('account.password_reset', 'Password reset', 'Reset your Locals Choice Awards password', 'transactional', true),
+  ('business.claim_received', 'Claim received', 'We received your claim for {{businessName}}', 'operational', true),
+  ('business.claim_evidence_requested', 'Evidence requested', 'Additional evidence needed for {{businessName}}', 'operational', true),
+  ('business.claim_approved', 'Claim approved', 'Your claim for {{businessName}} was approved', 'operational', true),
+  ('business.claim_rejected', 'Claim rejected', 'Update on your claim for {{businessName}}', 'operational', true),
+  ('business.team_invitation', 'Team invitation', 'You''re invited to manage {{businessName}}', 'operational', true),
+  ('campaign.nomination_received', 'Nomination received', 'Thanks for your nomination', 'operational', true),
+  ('campaign.business_nominated', 'Business nominated', '{{businessName}} was nominated', 'operational', true),
+  ('campaign.finalist_announced', 'Finalist announced', 'Finalists are live in {{communityName}}', 'operational', true),
+  ('campaign.voting_opened', 'Voting opened', 'Voting is open in {{communityName}}', 'operational', true),
+  ('campaign.voting_reminder', 'Voting reminder', 'Reminder: cast your Locals Choice vote', 'operational', true),
+  ('campaign.voting_closed', 'Voting closed', 'Voting has closed in {{communityName}}', 'operational', true),
+  ('campaign.winner_announced', 'Winner announced', 'Winners are live in {{communityName}}', 'operational', true),
+  ('commerce.cart_reminder', 'Cart reminder', 'Your award products are waiting', 'marketing', true),
+  ('commerce.order_received', 'Order received', 'We received order {{orderNumber}}', 'transactional', true),
+  ('commerce.payment_confirmed', 'Payment confirmed', 'Payment confirmed for order {{orderNumber}}', 'transactional', true),
+  ('commerce.fulfillment_accepted', 'Fulfillment accepted', 'Production accepted for order {{orderNumber}}', 'transactional', true),
+  ('commerce.production_started', 'Production started', 'Production started for order {{orderNumber}}', 'transactional', true),
+  ('commerce.order_shipped', 'Order shipped', 'Your order {{orderNumber}} has shipped', 'transactional', true),
+  ('commerce.delivered', 'Order delivered', 'Order {{orderNumber}} was delivered', 'transactional', true),
+  ('commerce.delay', 'Order delay', 'Update on order {{orderNumber}}', 'transactional', true),
+  ('commerce.damaged_claim_received', 'Damaged-item claim', 'We received your damaged-item claim', 'transactional', true),
+  ('commerce.refund_processed', 'Refund processed', 'Refund processed for order {{orderNumber}}', 'transactional', true),
+  ('winner.day0_congrats', 'Winner day 0', 'Congratulations — your digital assets are ready', 'marketing', true),
+  ('winner.day3_products', 'Winner day 3', 'See personalized award products for {{businessName}}', 'marketing', true),
+  ('winner.day10_reminder', 'Winner day 10', 'Recognition products reminder for {{businessName}}', 'marketing', true),
+  ('winner.day21_final', 'Winner day 21', 'Final follow-up: celebrate your Locals Choice win', 'marketing', true)
+on conflict (key) do update set
+  name = excluded.name,
+  subject_template = excluded.subject_template,
+  category = excluded.category,
+  active = excluded.active,
+  updated_at = now();
