@@ -76,7 +76,9 @@ function readServerOnlyEnv(): Record<string, string | undefined> {
 }
 
 function createServerEnv(): ServerEnv {
-  const skipValidation = process.env.SKIP_ENV_VALIDATION === "true";
+  const skipValidation =
+    process.env.SKIP_ENV_VALIDATION === "true" ||
+    process.env.NEXT_PHASE === "phase-production-build";
   const raw = readServerOnlyEnv();
   const parsed = serverOnlySchema.safeParse(raw);
 

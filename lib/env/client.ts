@@ -48,8 +48,16 @@ function readClientEnv(): Record<string, string | undefined> {
   };
 }
 
+function shouldSkipEnvValidation(): boolean {
+  return (
+    process.env.SKIP_ENV_VALIDATION === "true" ||
+    // Allow `next build` / Vercel compile to finish before runtime secrets are injected.
+    process.env.NEXT_PHASE === "phase-production-build"
+  );
+}
+
 export function createClientEnv(): ClientEnv {
-  const skipValidation = process.env.SKIP_ENV_VALIDATION === "true";
+  const skipValidation = shouldSkipEnvValidation();
   const raw = readClientEnv();
   const parsed = clientSchema.safeParse(raw);
 

@@ -124,3 +124,5 @@ See `ARCHITECTURE.md`, `ROADMAP.md`, and `CURSOR_RULES.md` for system boundaries
 ## Build without secrets
 
 CI or local production builds can set `SKIP_ENV_VALIDATION=true` when secrets are intentionally unavailable. Do not use that flag in production deployments.
+
+On Vercel, add the variables from `.env.example` under **Project → Settings → Environment Variables** for Production and Preview (at minimum all `NEXT_PUBLIC_*` keys plus server secrets). `NEXT_PUBLIC_*` values are baked in at build time — a redeploy is required after changing them.
