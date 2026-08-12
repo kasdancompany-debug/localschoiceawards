@@ -78,6 +78,10 @@ export async function listPublicCampaignCategories(
         };
       };
 
+      if (!masterRow.active || !masterRow.category_groups?.active) {
+        return [];
+      }
+
       const category = mapCampaignCategory({
         id: row.id,
         campaign_id: row.campaign_id,
