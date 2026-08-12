@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { OrderBusinessSearch } from "@/components/commerce/order-business-search";
-import { PageIntro, PageShell } from "@/components/layout/page-shell";
-import { buttonVariants } from "@/components/ui/button";
+import { PageShell } from "@/components/layout/page-shell";
 import { searchPublicBusinessesInCommunity } from "@/lib/businesses";
 import { getCurrentCommunity } from "@/lib/communities/current";
 import { buildCommunityMetadata } from "@/lib/communities/metadata";
-import { toRoute } from "@/lib/routes";
-import { cn } from "@/lib/utils";
 
 type OrderSearchPageProps = {
   searchParams: Promise<{ q?: string }>;
@@ -31,7 +27,8 @@ export default async function CommunityOrderSearchPage({ searchParams }: OrderSe
   if (!community) {
     return (
       <PageShell>
-        <PageIntro title="Order" description="Community not available." />
+        <h1 className="font-heading text-3xl font-semibold">Order</h1>
+        <p className="mt-2 text-muted-foreground">Community not available.</p>
       </PageShell>
     );
   }
@@ -46,17 +43,12 @@ export default async function CommunityOrderSearchPage({ searchParams }: OrderSe
 
   return (
     <PageShell>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <PageIntro
-          eyebrow={community.name}
-          title="Order awards & promote"
-          description="Search the directory, open your business, add trophies per win, or start a monthly promotion — then pay with Stripe."
-        />
-        <Link href={toRoute("/cart")} className={cn(buttonVariants({ variant: "outline" }))}>
-          Cart
-        </Link>
-      </div>
-
+      <h1 className="font-heading text-4xl font-semibold tracking-tight sm:text-5xl">
+        Order awards & promote
+      </h1>
+      <p className="mt-3 max-w-2xl text-muted-foreground">
+        Find your business, add trophies with +, then pay at the bottom with Stripe. No password.
+      </p>
       <div className="mt-10">
         <OrderBusinessSearch listings={listings} initialQuery={query} />
       </div>

@@ -20,4 +20,5 @@ export {
   listEligibilitiesForUser,
   mergeAnonymousCartIntoUser,
   revalidateCartBeforeCheckout,
+  setCartLineQuantity,
 } from "@/lib/commerce/cart";

@@ -203,10 +203,13 @@ export function CartClient({ lines, totals, currency }: CartClientProps) {
 
         <Link
           href={toRoute("/checkout")}
-          className={cn(buttonVariants(), "inline-flex w-full justify-center")}
+          className={cn(buttonVariants({ size: "lg" }), "inline-flex w-full justify-center")}
         >
-          Proceed to checkout
+          Continue to card payment
         </Link>
+        <p className="text-center text-xs text-muted-foreground">
+          Stripe collects your card securely on the next step. No account password required.
+        </p>
       </aside>
     </div>
   );

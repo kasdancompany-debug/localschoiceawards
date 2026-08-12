@@ -338,6 +338,164 @@ export async function addItemToCart(input: {
   return { ok: true, cartId: cart.id };
 }
 
+export async function setCartLineQuantity(input: {
+  userId?: string | null;
+  productVariantId: string;
+  awardEligibilityId?: string | null;
+  quantity: number;
+}): Promise<
+  | {
+      ok: true;
+      cartId: string;
+      itemCount: number;
+      subtotalCents: number;
+      currencyCode: CommerceCurrency | null;
+    }
+  | {
+      ok: false;
+      reason:
+        | "currency_mismatch"
+        | "eligibility_required"
+        | "eligibility_invalid"
+        | "quantity_limit"
+        | "variant_inactive"
+        | "server_error";
+      message: string;
+    }
+> {
+  const quantity = Math.max(0, Math.floor(input.quantity));
+  const admin = createSupabaseAdminClient();
+  const { cart } = await getOrCreateOpenCart({ userId: input.userId });
+
+  const { data: variantRow } = await admin
+    .from("product_variants")
+    .select("*, products(*)")
+    .eq("id", input.productVariantId)
+    .maybeSingle();
+
+  if (!variantRow || !variantRow.active) {
+    return { ok: false, reason: "variant_inactive", message: "That product variant is unavailable." };
+  }
+
+  const product = mapProduct(variantRow.products as never);
+  const variant = mapVariant(variantRow);
+  if (!product.active) {
+    return { ok: false, reason: "variant_inactive", message: "That product is unavailable." };
+  }
+
+  let eligibilityId: string | null = null;
+  let personalization: PersonalizationSnapshot | Record<string, unknown> = {};
+
+  if (product.requiresAwardEligibility) {
+    if (!input.awardEligibilityId) {
+      return {
+        ok: false,
+        reason: "eligibility_required",
+        message: "Choose an eligible published win before adding this product.",
+      };
+    }
+    const eligibility = await loadActiveEligibility(input.awardEligibilityId, input.userId ?? null);
+    if (!eligibility) {
+      return {
+        ok: false,
+        reason: "eligibility_invalid",
+        message: "That award eligibility is revoked or unavailable.",
+      };
+    }
+    eligibilityId = eligibility.id;
+    personalization = buildPersonalizationSnapshot({
+      awardEligibilityId: eligibility.id,
+      businessName: eligibility.personalized_business_name,
+      communityName: eligibility.personalized_community_name,
+      categoryName: eligibility.personalized_category_name,
+      campaignYear: eligibility.personalized_campaign_year,
+      placement: eligibility.placement,
+    });
+  }
+
+  const { data: existing } = await (eligibilityId
+    ? admin
+        .from("cart_items")
+        .select("*")
+        .eq("cart_id", cart.id)
+        .eq("product_variant_id", variant.id)
+        .eq("award_eligibility_id", eligibilityId)
+        .maybeSingle()
+    : admin
+        .from("cart_items")
+        .select("*")
+        .eq("cart_id", cart.id)
+        .eq("product_variant_id", variant.id)
+        .is("award_eligibility_id", null)
+        .maybeSingle());
+
+  if (quantity <= 0) {
+    if (existing) {
+      await admin.from("cart_items").delete().eq("id", existing.id);
+    }
+  } else {
+    if (quantity > product.maxQuantity) {
+      return {
+        ok: false,
+        reason: "quantity_limit",
+        message: `Quantity limit for this product is ${product.maxQuantity}.`,
+      };
+    }
+
+    const currencyCheck = assertCartCurrencyCompatible(cart.currencyCode, variant.currencyCode);
+    if (!currencyCheck.ok) {
+      return {
+        ok: false,
+        reason: "currency_mismatch",
+        message: "A cart cannot mix CAD and USD items.",
+      };
+    }
+
+    if (!cart.currencyCode) {
+      await admin.from("carts").update({ currency_code: variant.currencyCode }).eq("id", cart.id);
+      cart.currencyCode = variant.currencyCode;
+    }
+
+    if (existing) {
+      const { error } = await admin
+        .from("cart_items")
+        .update({
+          quantity,
+          unit_price_cents: variant.priceCents,
+          personalization_snapshot: toJson(personalization),
+        })
+        .eq("id", existing.id);
+      if (error) {
+        return { ok: false, reason: "server_error", message: "Unable to update cart." };
+      }
+    } else {
+      const { error } = await admin.from("cart_items").insert({
+        cart_id: cart.id,
+        product_variant_id: variant.id,
+        award_eligibility_id: eligibilityId,
+        quantity,
+        unit_price_cents: variant.priceCents,
+        personalization_snapshot: toJson(personalization),
+      });
+      if (error) {
+        return { ok: false, reason: "server_error", message: "Unable to add to cart." };
+      }
+    }
+  }
+
+  const { lines } = await listCartLines({ userId: input.userId });
+  const itemCount = lines.reduce((sum, line) => sum + line.item.quantity, 0);
+  const subtotalCents = lines.reduce((sum, line) => sum + line.lineTotalCents, 0);
+
+  return {
+    ok: true,
+    cartId: cart.id,
+    itemCount,
+    subtotalCents,
+    currencyCode: cart.currencyCode ?? lines[0]?.currencyCode ?? null,
+  };
+}
+
 async function loadActiveEligibility(eligibilityId: string, _userId: string | null) {
   const admin = createSupabaseAdminClient();
   // Public directory ordering: any active published eligibility can personalize products.

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CartClient } from "@/components/commerce/cart-client";
-import { PageIntro, PageShell } from "@/components/layout/page-shell";
+import { PageShell } from "@/components/layout/page-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { getAuthenticatedSession } from "@/lib/auth/session";
 import { computeCartTotals, listCartLines } from "@/lib/commerce/cart";
@@ -31,12 +31,11 @@ export default async function CommunityCartPage() {
   if (!cartView) {
     return (
       <PageShell>
-        <PageIntro
-          eyebrow={community?.name ?? "Checkout"}
-          title="Cart"
-          description="Your cart is temporarily unavailable. Please try again in a moment."
-        />
-        <Link href={toRoute("/order")} className={cn(buttonVariants({ variant: "outline" }))}>
+        <h1 className="font-heading text-3xl font-semibold">Cart</h1>
+        <p className="mt-2 text-muted-foreground">
+          Your cart is temporarily unavailable. Please try again in a moment.
+        </p>
+        <Link href={toRoute("/order")} className={cn(buttonVariants({ variant: "outline" }), "mt-4")}>
           Search businesses
         </Link>
       </PageShell>
@@ -68,14 +67,13 @@ export default async function CommunityCartPage() {
 
   return (
     <PageShell>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <PageIntro
-          eyebrow={community?.name ?? "Checkout prep"}
-          title="Cart"
-          description="Add awards from any business listing, enter a postal or ZIP code for shipping, then continue to Stripe — no password required."
-        />
+      <h1 className="font-heading text-4xl font-semibold tracking-tight">Cart</h1>
+      <p className="mt-2 max-w-2xl text-muted-foreground">
+        Enter a postal or ZIP code for shipping, then continue to card payment.
+      </p>
+      <div className="mt-4">
         <Link href={toRoute("/order")} className={cn(buttonVariants({ variant: "outline" }))}>
-          Add another business
+          Search another business
         </Link>
       </div>
       <CartClient lines={lines} totals={totals} currency={cart.currencyCode} />

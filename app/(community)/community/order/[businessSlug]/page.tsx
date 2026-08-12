@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 
 import { AwardProductShop } from "@/components/commerce/award-product-shop";
 import { PromoteCheckoutPanel } from "@/components/commerce/promote-checkout-panel";
-import { PageIntro, PageShell } from "@/components/layout/page-shell";
-import { buttonVariants } from "@/components/ui/button";
+import { PageShell } from "@/components/layout/page-shell";
 import { getAuthenticatedSession } from "@/lib/auth/session";
 import { getPublicBusinessBySlug } from "@/lib/businesses";
+import { listCartLines } from "@/lib/commerce/cart";
 import {
   getBusinessPromotionProduct,
   listActiveCatalogProducts,
@@ -18,7 +18,6 @@ import { usesPathCommunityUrls } from "@/lib/communities/path-mode";
 import { businessHasActivePromotion } from "@/lib/promotions/service";
 import { listPublicBusinessWins } from "@/lib/results/service";
 import { toRoute } from "@/lib/routes";
-import { cn } from "@/lib/utils";
 import type { CommerceCurrency } from "@/types/commerce";
 
 type OrderBusinessPageProps = {
@@ -57,7 +56,7 @@ export default async function CommunityOrderBusinessPage({ params }: OrderBusine
 
   const session = await getAuthenticatedSession();
   const currencyCode = community.country.currencyCode as CommerceCurrency;
-  const [wins, products, promotionProduct, alreadyPromoted] = await Promise.all([
+  const [wins, products, promotionProduct, alreadyPromoted, cartView] = await Promise.all([
     listPublicBusinessWins({
       businessId: profile.business.id,
       communityId: community.id,
@@ -65,6 +64,7 @@ export default async function CommunityOrderBusinessPage({ params }: OrderBusine
     listActiveCatalogProducts(currencyCode),
     getBusinessPromotionProduct(currencyCode),
     businessHasActivePromotion(profile.business.id),
+    listCartLines({ userId: session?.userId ?? null }).catch(() => null),
   ]);
 
   const orderWins = wins
@@ -82,23 +82,50 @@ export default async function CommunityOrderBusinessPage({ params }: OrderBusine
     promotionProduct?.variants[0];
 
   const currentYear = orderWins.reduce((max, win) => Math.max(max, win.campaignYear), 0);
+  const productByVariantId = new Map(
+    products.flatMap((product) =>
+      product.variants.map((variant) => [variant.id, product] as const),
+    ),
+  );
+
+  const initialQuantities =
+    cartView?.lines
+      .map((line) => {
+        const product = productByVariantId.get(line.item.productVariantId);
+        if (!product || !line.item.awardEligibilityId) return null;
+        return {
+          productId: product.id,
+          productVariantId: line.item.productVariantId,
+          eligibilityId: line.item.awardEligibilityId,
+          quantity: line.item.quantity,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => Boolean(row)) ?? [];
+
+  const initialItemCount =
+    cartView?.lines.reduce((sum, line) => sum + line.item.quantity, 0) ?? 0;
+  const initialSubtotalCents =
+    cartView?.lines.reduce((sum, line) => sum + line.lineTotalCents, 0) ?? 0;
 
   return (
     <PageShell>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <PageIntro
-          eyebrow={community.name}
-          title={`Promote ${profile.business.publicName}`}
-          description="Order personalized trophies, plaques, and decals for every published win — or promote the listing monthly. No password required."
-        />
-        <div className="flex flex-wrap gap-2">
-          <Link href={toRoute("/order")} className={cn(buttonVariants({ variant: "outline" }))}>
-            Search again
-          </Link>
-          <Link href={toRoute("/cart")} className={cn(buttonVariants())}>
-            Cart
-          </Link>
-        </div>
+      <div className="space-y-2">
+        <p className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+          {community.name}
+        </p>
+        <h1 className="font-heading text-4xl font-semibold tracking-tight text-primary sm:text-5xl">
+          {profile.business.publicName}
+        </h1>
+        <p className="max-w-2xl text-muted-foreground">
+          Promote your business and order awards. Use + / − to fill the cart at the bottom, then
+          pay by card.
+        </p>
+        <Link
+          href={toRoute("/order")}
+          className="inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Search for another business
+        </Link>
       </div>
 
       <div className="mt-12 space-y-14">
@@ -108,52 +135,40 @@ export default async function CommunityOrderBusinessPage({ params }: OrderBusine
           products={products}
           currencyCode={currencyCode}
           currentYear={currentYear || undefined}
+          initialQuantities={initialQuantities}
+          initialItemCount={initialItemCount}
+          initialSubtotalCents={initialSubtotalCents}
         />
 
         <section className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8">
-          <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-            <div>
-              <h2 className="font-heading text-2xl font-semibold tracking-tight">
-                Promote your business
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Featured directory boost and ongoing visibility for this listing. Billed monthly —
-                strong long-term indexing value alongside one-time award orders.
+          <h2 className="font-heading text-2xl font-semibold tracking-tight">
+            Promote your business
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Monthly featured placement for this listing. Separate from trophy orders.
+          </p>
+          <div className="mt-6 max-w-md">
+            {promoVariant ? (
+              <PromoteCheckoutPanel
+                businessId={profile.business.id}
+                communityId={community.id}
+                businessName={profile.business.publicName}
+                currencyCode={promoVariant.currencyCode}
+                priceCents={promoVariant.priceCents}
+                defaultEmail={session?.email ?? ""}
+                alreadyActive={alreadyPromoted}
+                returnPathPrefix={
+                  usesPathCommunityUrls() ? `/c/${community.subdomain}` : ""
+                }
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Promotion checkout is temporarily unavailable.
               </p>
-            </div>
-            <div>
-              {promoVariant ? (
-                <PromoteCheckoutPanel
-                  businessId={profile.business.id}
-                  communityId={community.id}
-                  businessName={profile.business.publicName}
-                  currencyCode={promoVariant.currencyCode}
-                  priceCents={promoVariant.priceCents}
-                  defaultEmail={session?.email ?? ""}
-                  alreadyActive={alreadyPromoted}
-                  returnPathPrefix={
-                    usesPathCommunityUrls() ? `/c/${community.subdomain}` : ""
-                  }
-                />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Promotion checkout is temporarily unavailable.
-                </p>
-              )}
-            </div>
+            )}
           </div>
         </section>
       </div>
-
-      <p className="mt-10 text-center text-sm text-muted-foreground">
-        Prefer the full profile?{" "}
-        <Link
-          href={toRoute(`/business/${profile.business.slug}`)}
-          className="text-primary underline-offset-4 hover:underline"
-        >
-          View {profile.business.publicName}
-        </Link>
-      </p>
     </PageShell>
   );
 }

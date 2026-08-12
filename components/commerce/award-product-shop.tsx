@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { addToCartAction, type CommerceActionState } from "@/lib/commerce/actions";
+import { setCartLineQuantityAction } from "@/lib/commerce/actions";
 import { formatMoney } from "@/lib/commerce/rules";
 import { placementLabel } from "@/lib/results/rules";
 import { toRoute } from "@/lib/routes";
@@ -20,12 +20,22 @@ export type OrderWin = {
   businessName: string;
 };
 
+export type InitialCartQty = {
+  productId: string;
+  productVariantId: string;
+  eligibilityId: string;
+  quantity: number;
+};
+
 type AwardProductShopProps = {
   businessName: string;
   wins: OrderWin[];
   products: CatalogProduct[];
   currencyCode: CommerceCurrency;
   currentYear?: number;
+  initialQuantities?: InitialCartQty[];
+  initialItemCount?: number;
+  initialSubtotalCents?: number;
 };
 
 type QtyKey = string;
@@ -46,7 +56,7 @@ function productBullets(description: string): string[] {
     description,
     "Engraved with the business name and winning category",
     "Made to order and dropshipped after payment",
-    "Shipping is calculated separately at checkout",
+    "Shipping is calculated at payment",
   ].filter(Boolean);
 }
 
@@ -95,11 +105,17 @@ function QuantityStepper({
           +
         </button>
       </div>
-      <p className="text-sm font-medium">
-        &ldquo;{label}&rdquo;
-      </p>
+      <p className="text-sm font-medium">&ldquo;{label}&rdquo;</p>
     </div>
   );
+}
+
+function buildInitialMap(initial?: InitialCartQty[]): Record<QtyKey, number> {
+  const map: Record<QtyKey, number> = {};
+  for (const row of initial ?? []) {
+    map[qtyKey(row.productId, row.eligibilityId)] = row.quantity;
+  }
+  return map;
 }
 
 export function AwardProductShop({
@@ -108,10 +124,18 @@ export function AwardProductShop({
   products,
   currencyCode,
   currentYear,
+  initialQuantities,
+  initialItemCount = 0,
+  initialSubtotalCents = 0,
 }: AwardProductShopProps) {
-  const [quantities, setQuantities] = useState<Record<QtyKey, number>>({});
+  const [quantities, setQuantities] = useState<Record<QtyKey, number>>(() =>
+    buildInitialMap(initialQuantities),
+  );
+  const [cartCount, setCartCount] = useState(initialItemCount);
+  const [cartSubtotal, setCartSubtotal] = useState(initialSubtotalCents);
   const [showPreviousYears, setShowPreviousYears] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const latestYear = useMemo(() => {
@@ -138,73 +162,36 @@ export function AwardProductShop({
     return Array.from(map.entries());
   }, [products]);
 
-  const selectedLines = useMemo(() => {
-    const lines: Array<{
-      product: CatalogProduct;
-      variantId: string;
-      eligibilityId: string;
-      quantity: number;
-      win: OrderWin;
-      priceCents: number;
-    }> = [];
+  function syncQuantity(input: {
+    product: CatalogProduct;
+    eligibilityId: string;
+    next: number;
+  }) {
+    const variant =
+      input.product.variants.find((item) => item.currencyCode === currencyCode) ??
+      input.product.variants[0];
+    if (!variant) return;
 
-    for (const product of products) {
-      const variant =
-        product.variants.find((item) => item.currencyCode === currencyCode) ??
-        product.variants[0];
-      if (!variant) continue;
-      for (const win of wins) {
-        const quantity = quantities[qtyKey(product.id, win.eligibilityId)] ?? 0;
-        if (quantity <= 0) continue;
-        lines.push({
-          product,
-          variantId: variant.id,
-          eligibilityId: win.eligibilityId,
-          quantity,
-          win,
-          priceCents: variant.priceCents,
-        });
-      }
-    }
-    return lines;
-  }, [products, wins, quantities, currencyCode]);
-
-  const selectedCount = selectedLines.reduce((sum, line) => sum + line.quantity, 0);
-  const selectedSubtotal = selectedLines.reduce(
-    (sum, line) => sum + line.priceCents * line.quantity,
-    0,
-  );
-
-  function setQty(productId: string, eligibilityId: string, next: number) {
-    setQuantities((current) => ({
-      ...current,
-      [qtyKey(productId, eligibilityId)]: next,
-    }));
-  }
-
-  function addSelectedToCart() {
-    if (!selectedLines.length) {
-      setMessage("Use + to choose quantities for each win, then add them to your cart.");
-      return;
-    }
+    const key = qtyKey(input.product.id, input.eligibilityId);
+    const previous = quantities[key] ?? 0;
+    setQuantities((current) => ({ ...current, [key]: input.next }));
+    setPendingKey(key);
+    setMessage(null);
 
     startTransition(async () => {
-      setMessage(null);
-      let added = 0;
-      for (const line of selectedLines) {
-        const formData = new FormData();
-        formData.set("productVariantId", line.variantId);
-        formData.set("awardEligibilityId", line.eligibilityId);
-        formData.set("quantity", String(line.quantity));
-        const result: CommerceActionState = await addToCartAction({ ok: false }, formData);
-        if (!result.ok) {
-          setMessage(result.message ?? "Unable to add some items. Try again.");
-          return;
-        }
-        added += line.quantity;
+      const result = await setCartLineQuantityAction({
+        productVariantId: variant.id,
+        awardEligibilityId: input.eligibilityId,
+        quantity: input.next,
+      });
+      setPendingKey(null);
+      if (!result.ok) {
+        setQuantities((current) => ({ ...current, [key]: previous }));
+        setMessage(result.message ?? "Could not update cart.");
+        return;
       }
-      setQuantities({});
-      setMessage(`Added ${added} item${added === 1 ? "" : "s"} to your cart.`);
+      setCartCount(result.itemCount ?? 0);
+      setCartSubtotal(result.subtotalCents ?? 0);
     });
   }
 
@@ -218,9 +205,7 @@ export function AwardProductShop({
 
   if (!products.length) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Award products are temporarily unavailable.
-      </p>
+      <p className="text-sm text-muted-foreground">Award products are temporarily unavailable.</p>
     );
   }
 
@@ -231,9 +216,8 @@ export function AwardProductShop({
           Products available for purchase
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Use + / − beside each winning category to order as many trophies, plaques, or decals as
-          you need. We personalize and dropship after Stripe payment — shipping is calculated in
-          the cart.
+          Tap + beside each win to fill your cart instantly. Pay at the bottom with Stripe —
+          shipping is calculated before card details.
         </p>
       </div>
 
@@ -272,15 +256,12 @@ export function AwardProductShop({
                         {bullets.map((bullet) => (
                           <li key={bullet}>{bullet}</li>
                         ))}
-                        <li>
-                          Available for published {businessName} wins — personalized per category
-                        </li>
                       </ul>
                     </div>
 
                     <div className="space-y-4">
                       <p className="text-sm font-medium text-muted-foreground">
-                        Choose quantities for each qualifying win
+                        Quantities for each qualifying win
                       </p>
                       <ul className="space-y-3">
                         {visibleWins.map((win) => {
@@ -294,10 +275,14 @@ export function AwardProductShop({
                               <QuantityStepper
                                 value={value}
                                 max={product.maxQuantity}
-                                disabled={pending}
+                                disabled={pending && pendingKey === key}
                                 label={label}
                                 onChange={(next) =>
-                                  setQty(product.id, win.eligibilityId, next)
+                                  syncQuantity({
+                                    product,
+                                    eligibilityId: win.eligibilityId,
+                                    next,
+                                  })
                                 }
                               />
                             </li>
@@ -310,9 +295,7 @@ export function AwardProductShop({
                           className="text-sm font-medium text-primary underline-offset-4 hover:underline"
                           onClick={() => setShowPreviousYears((current) => !current)}
                         >
-                          {showPreviousYears
-                            ? "Hide previous years"
-                            : "Show previous years"}
+                          {showPreviousYears ? "Hide previous years" : "Show previous years"}
                         </button>
                       ) : null}
                     </div>
@@ -324,32 +307,40 @@ export function AwardProductShop({
         </section>
       ))}
 
-      <div className="sticky bottom-4 z-10 rounded-2xl border border-border/80 bg-background/95 p-4 shadow-lg backdrop-blur">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border/80 bg-background/95 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="text-sm">
-            <p className="font-medium">
-              {selectedCount
-                ? `${selectedCount} item${selectedCount === 1 ? "" : "s"} selected · ${formatMoney(selectedSubtotal, currencyCode)}`
-                : "No items selected yet"}
+            <p className="font-semibold">
+              Cart {cartCount} ·{" "}
+              {formatMoney(cartSubtotal, currencyCode)}
             </p>
             <p className="text-muted-foreground">
-              Shipping & tax calculated at checkout. Margins come after dropship cost.
+              {cartCount
+                ? "Next: enter shipping, then pay by card with Stripe."
+                : "Use + to add trophies and plaques for each win."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={addSelectedToCart} disabled={pending || !selectedCount}>
-              {pending ? "Adding…" : "Add selected to cart"}
-            </Button>
-            <Link href={toRoute("/cart")} className={cn(buttonVariants({ variant: "outline" }))}>
-              View cart & pay
+            <Link
+              href={toRoute("/cart")}
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                !cartCount && "pointer-events-none opacity-50",
+              )}
+            >
+              {cartCount ? "Review cart & pay" : "Cart empty"}
+            </Link>
+            <Link href={toRoute("/order")} className={cn(buttonVariants({ variant: "outline" }))}>
+              Search another business
             </Link>
           </div>
         </div>
-        {message ? <p className="mt-3 text-sm text-foreground">{message}</p> : null}
+        {message ? (
+          <p className="mx-auto max-w-6xl px-4 pb-3 text-sm text-destructive sm:px-6">{message}</p>
+        ) : null}
       </div>
     </div>
   );
 }
 
-/** @deprecated Prefer AwardProductShop */
 export const AwardQuickAdd = AwardProductShop;

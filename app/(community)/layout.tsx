@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 import { CommunityUnavailable } from "@/components/communities/community-unavailable";
+import { CommunityShell } from "@/components/layout/community-shell";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import {
@@ -68,50 +69,28 @@ export default async function CommunityLayout({ children }: CommunityLayoutProps
     );
   }
 
-  const navItems = [
+  const fullNavItems = [
     { href: withPrefix("/"), label: "Home" },
     { href: withPrefix("/categories"), label: "Categories" },
     { href: withPrefix("/search"), label: "Search" },
     { href: withPrefix("/order"), label: "Order & promote" },
     { href: withPrefix("/how-it-works"), label: "How it works" },
-    { href: withPrefix("/rules"), label: "Rules" },
     { href: withPrefix("/winners"), label: "Winners" },
-    { href: withPrefix("/cart"), label: "Cart" },
   ];
 
   return (
-    <>
-      <SiteHeader
-        brandHref={withPrefix("/")}
-        brandLabel={community.name}
-        brandEyebrow="Locals Choice Awards"
-        navItems={navItems}
-        cta={{ href: withPrefix("/order"), label: "Order awards" }}
-      />
-      <main className="flex-1">{children}</main>
-      <SiteFooter
-        brandLabel={`${community.name} Locals Choice Awards`}
-        description={`Celebrating the businesses ${community.name} loves.`}
-        linkGroups={[
-          {
-            title: "This community",
-            links: [
-              { href: withPrefix("/"), label: "Home" },
-              { href: withPrefix("/categories"), label: "Categories" },
-              { href: withPrefix("/order"), label: "Order & promote" },
-              { href: withPrefix("/winners"), label: "Winners" },
-              { href: withPrefix("/rules"), label: "Rules" },
-            ],
-          },
-          {
-            title: "Platform",
-            links: [
-              { href: withPrefix("/how-it-works"), label: "How it works" },
-              { href: `${centralSiteUrl}/communities`, label: "All communities" },
-            ],
-          },
-        ]}
-      />
-    </>
+    <CommunityShell
+      brandHref={withPrefix("/")}
+      brandLabel={community.name}
+      brandEyebrow="Locals Choice Awards"
+      fullNavItems={fullNavItems}
+      orderHref={withPrefix("/order")}
+      searchAnotherHref={withPrefix("/order")}
+      cartHref={withPrefix("/cart")}
+      homeHref={withPrefix("/")}
+      centralSiteUrl={centralSiteUrl}
+    >
+      {children}
+    </CommunityShell>
   );
 }

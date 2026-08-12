@@ -7,6 +7,7 @@ import {
   addItemToCart,
   listCartLines,
   removeCartItem,
+  setCartLineQuantity,
   updateCartItemQuantity,
 } from "@/lib/commerce/cart";
 import {
@@ -34,6 +35,69 @@ export type CommerceActionState = {
 
 function firstIssue(error: { issues: Array<{ message: string }> }): string {
   return error.issues[0]?.message ?? "Please check the form and try again.";
+}
+
+export type CartSummaryState = {
+  ok: boolean;
+  message?: string;
+  itemCount?: number;
+  subtotalCents?: number;
+  currencyCode?: string | null;
+};
+
+export async function setCartLineQuantityAction(input: {
+  productVariantId: string;
+  awardEligibilityId?: string | null;
+  quantity: number;
+}): Promise<CartSummaryState> {
+  const session = await getAuthenticatedSession();
+  const parsed = addToCartSchema.safeParse({
+    productVariantId: input.productVariantId,
+    awardEligibilityId: input.awardEligibilityId || "",
+    quantity: Math.max(1, input.quantity || 1),
+  });
+
+  // Allow absolute zero via dedicated path (schema requires min 1).
+  if (input.quantity <= 0) {
+    const result = await setCartLineQuantity({
+      userId: session?.userId ?? null,
+      productVariantId: input.productVariantId,
+      awardEligibilityId: input.awardEligibilityId || null,
+      quantity: 0,
+    });
+    if (!result.ok) {
+      return { ok: false, message: result.message };
+    }
+    revalidateCommercePaths();
+    return {
+      ok: true,
+      itemCount: result.itemCount,
+      subtotalCents: result.subtotalCents,
+      currencyCode: result.currencyCode,
+    };
+  }
+
+  if (!parsed.success) {
+    return { ok: false, message: firstIssue(parsed.error) };
+  }
+
+  const result = await setCartLineQuantity({
+    userId: session?.userId ?? null,
+    productVariantId: parsed.data.productVariantId,
+    awardEligibilityId: parsed.data.awardEligibilityId || null,
+    quantity: input.quantity,
+  });
+
+  if (!result.ok) {
+    return { ok: false, message: result.message };
+  }
+  revalidateCommercePaths();
+  return {
+    ok: true,
+    itemCount: result.itemCount,
+    subtotalCents: result.subtotalCents,
+    currencyCode: result.currencyCode,
+  };
 }
 
 export async function addToCartAction(
