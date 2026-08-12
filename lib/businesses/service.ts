@@ -326,21 +326,32 @@ export async function searchPublicBusinessesInCommunity(input: {
 
     const rows = result.data ?? [];
     const listings: PublicBusinessListing[] = [];
+    const locationIds = rows
+      .map((row) => {
+        try {
+          return mapBusinessLocation(row as BusinessLocationRow).id;
+        } catch {
+          return null;
+        }
+      })
+      .filter((id): id is string => Boolean(id));
 
-    for (const row of rows) {
-      const businessRaw = row.businesses as unknown;
-      if (!businessRaw || typeof businessRaw !== "object") {
-        continue;
-      }
-      const business = mapBusiness(businessRaw as BusinessRow);
-      const location = mapBusinessLocation(row as BusinessLocationRow);
+    const assignmentByLocation = new Map<
+      string,
+      Array<{
+        status: string;
+        campaign_categories: unknown;
+      }>
+    >();
 
+    if (locationIds.length > 0) {
       const assignmentResult = await withSoftTimeout(
         Promise.resolve(
           supabase
             .from("business_category_assignments")
             .select(
               `
+              business_location_id,
               status,
               campaign_categories!inner (
                 id,
@@ -354,13 +365,30 @@ export async function searchPublicBusinessesInCommunity(input: {
               )
             `,
             )
-            .eq("business_location_id", location.id)
+            .in("business_location_id", locationIds)
             .eq("status", "approved"),
         ),
         { data: [], error: null } as never,
       );
 
-      const categories = (assignmentResult.data ?? []).flatMap(
+      for (const assignment of assignmentResult.data ?? []) {
+        const locationId = (assignment as { business_location_id?: string }).business_location_id;
+        if (!locationId) continue;
+        const bucket = assignmentByLocation.get(locationId) ?? [];
+        bucket.push(assignment as { status: string; campaign_categories: unknown });
+        assignmentByLocation.set(locationId, bucket);
+      }
+    }
+
+    for (const row of rows) {
+      const businessRaw = row.businesses as unknown;
+      if (!businessRaw || typeof businessRaw !== "object") {
+        continue;
+      }
+      const business = mapBusiness(businessRaw as BusinessRow);
+      const location = mapBusinessLocation(row as BusinessLocationRow);
+
+      const categories = (assignmentByLocation.get(location.id) ?? []).flatMap(
         (assignment: { campaign_categories: unknown }) => {
           const categoryRaw = assignment.campaign_categories;
           if (!categoryRaw || typeof categoryRaw !== "object") {
@@ -422,6 +450,11 @@ export async function listBusinessesForCategory(input: {
   categorySlug: string;
   limit?: number;
 }): Promise<PublicBusinessListing[]> {
+  if (input.communityId.startsWith("pilot-")) {
+    const { listPilotBusinessesForCategory } = await import("@/lib/pilot/directory-catalog");
+    return listPilotBusinessesForCategory(input);
+  }
+
   return searchPublicBusinessesInCommunity({
     communityId: input.communityId,
     categorySlug: input.categorySlug,
@@ -463,6 +496,89 @@ export async function createMissingBusinessSubmission(input: {
     return { ok: true, id: data.id, message: "Submission received for review." };
   } catch {
     return { ok: false, message: "Unable to save submission. Please try again." };
+  }
+}
+
+/**
+ * Creates an approved directory listing from a public nomination so the business
+ * appears in the category list immediately, then can receive nomination notice email.
+ */
+export async function createApprovedBusinessFromNomination(input: {
+  communityId: string;
+  campaignCategoryId: string;
+  businessName: string;
+  address?: string | null;
+  websiteUrl?: string | null;
+  phone?: string | null;
+  businessEmail: string;
+}): Promise<
+  | { ok: true; businessId: string; locationId: string }
+  | { ok: false; message: string }
+> {
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data: existingBusinesses } = await supabase
+      .from("businesses")
+      .select("slug")
+      .is("deleted_at", null);
+    const slugSet = new Set((existingBusinesses ?? []).map((row) => row.slug.toLowerCase()));
+    const slug = buildUniqueBusinessSlug(input.businessName, slugSet);
+
+    const { data: business, error: businessError } = await supabase
+      .from("businesses")
+      .insert({
+        legal_name: input.businessName,
+        public_name: input.businessName,
+        slug,
+        description: "",
+        website_url: input.websiteUrl || null,
+        primary_phone: input.phone || null,
+        primary_email: input.businessEmail,
+        status: "approved",
+      })
+      .select("id")
+      .single();
+
+    if (businessError || !business) {
+      return { ok: false, message: "Unable to add business to the directory." };
+    }
+
+    const locationSlug = buildUniqueBusinessSlug(input.businessName, new Set());
+    const { data: location, error: locationError } = await supabase
+      .from("business_locations")
+      .insert({
+        business_id: business.id,
+        community_id: input.communityId,
+        location_name: input.businessName,
+        slug: locationSlug,
+        address_line_1: input.address || null,
+        phone: input.phone || null,
+        email: input.businessEmail,
+        website_url: input.websiteUrl || null,
+        service_area_business: false,
+        active: true,
+      })
+      .select("id")
+      .single();
+
+    if (locationError || !location) {
+      return { ok: false, message: "Unable to add business location." };
+    }
+
+    const { error: assignmentError } = await supabase.from("business_category_assignments").insert({
+      business_location_id: location.id,
+      campaign_category_id: input.campaignCategoryId,
+      status: "approved",
+      assigned_by: null,
+    });
+
+    if (assignmentError) {
+      return { ok: false, message: "Unable to assign business to category." };
+    }
+
+    return { ok: true, businessId: business.id, locationId: location.id };
+  } catch {
+    return { ok: false, message: "Unable to add business to the directory." };
   }
 }
 

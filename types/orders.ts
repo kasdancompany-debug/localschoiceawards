@@ -55,7 +55,7 @@ export type WebhookProcessingStatus = (typeof WEBHOOK_PROCESSING_STATUSES)[numbe
 export type Order = {
   id: string;
   orderNumber: string;
-  userId: string;
+  userId: string | null;
   businessId: string | null;
   cartId: string | null;
   currencyCode: CommerceCurrency;
@@ -132,6 +132,7 @@ export type WebhookEventRecord = {
   attempts: number;
   errorMessage: string | null;
   receivedAt: string;
+  lastAttemptAt: string | null;
   processedAt: string | null;
 };
 

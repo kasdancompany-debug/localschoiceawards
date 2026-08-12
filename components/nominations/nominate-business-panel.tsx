@@ -135,6 +135,16 @@ export function NominateBusinessPanel({
           ) : null}
         </ul>
         <TurnstileField onTokenChange={onTokenChange} />
+        <div className="space-y-2">
+          <Label htmlFor="nominate-email">Business email (optional override)</Label>
+          <Input
+            id="nominate-email"
+            name="businessEmail"
+            type="email"
+            className="h-11"
+            placeholder="Uses the listing email when left blank"
+          />
+        </div>
         <Button type="submit" disabled={nominatePending || !selectedLocationId || !turnstileToken}>
           {nominatePending ? "Submitting…" : "Nominate"}
         </Button>
@@ -163,11 +173,25 @@ export function NominateBusinessPanel({
             <Label htmlFor="suggest-website">Website</Label>
             <Input id="suggest-website" name="websiteUrl" type="url" className="h-11" />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="suggest-phone">Phone</Label>
-            <Input id="suggest-phone" name="phone" className="h-11" />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="suggest-phone">Phone</Label>
+          <Input id="suggest-phone" name="phone" className="h-11" />
         </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="suggest-email">Business email</Label>
+          <Input
+            id="suggest-email"
+            name="businessEmail"
+            type="email"
+            required
+            className="h-11"
+            placeholder="business@example.com"
+          />
+          <p className="text-xs text-muted-foreground">
+            Required — we email the business that they’ve been nominated.
+          </p>
+        </div>
+      </div>
         <TurnstileField onTokenChange={onSuggestTokenChange} />
         <Button type="submit" variant="outline" disabled={suggestPending || !suggestToken}>
           {suggestPending ? "Submitting…" : "Suggest & nominate"}

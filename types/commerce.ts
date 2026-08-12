@@ -1,6 +1,9 @@
 export const PRODUCT_TYPES = ["physical", "digital", "bundle"] as const;
 export type ProductType = (typeof PRODUCT_TYPES)[number];
 
+export const BILLING_INTERVALS = ["month", "year"] as const;
+export type BillingInterval = (typeof BILLING_INTERVALS)[number];
+
 export const COMMERCE_CURRENCIES = ["CAD", "USD"] as const;
 export type CommerceCurrency = (typeof COMMERCE_CURRENCIES)[number];
 
@@ -21,6 +24,8 @@ export type Product = {
   requiresShipping: boolean;
   featured: boolean;
   maxQuantity: number;
+  /** Null for one-time SKUs; set for subscription catalog items. */
+  billingInterval: BillingInterval | null;
   createdAt: string;
   updatedAt: string;
 };

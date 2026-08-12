@@ -1,11 +1,23 @@
 import "server-only";
 
+import sharp from "sharp";
+
+import {
+  assertBusinessMediaPathOwned,
+  assertBusinessMediaSize,
+} from "@/lib/businesses/media-rules";
 import { createSupabaseAdminClient } from "@/lib/database/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/database/supabase/server";
 
+export {
+  assertBusinessMediaPathOwned,
+  assertBusinessMediaSize,
+  BUSINESS_MEDIA_MAX_BYTES,
+} from "@/lib/businesses/media-rules";
+
 const BUCKET = "business-media";
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const MAX_BYTES = 5 * 1024 * 1024;
+const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp", "gif"]);
 
 export async function createBusinessMediaUploadUrl(input: {
   businessId: string;
@@ -32,6 +44,33 @@ export async function createBusinessMediaUploadUrl(input: {
   };
 }
 
+/**
+ * Downloads the uploaded object and verifies size + decoded image format
+ * (client-declared MIME alone is not trusted).
+ */
+export async function assertBusinessMediaObjectValid(storagePath: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
+  if (error || !data) {
+    throw new Error(error?.message ?? "Unable to verify uploaded media.");
+  }
+
+  const buffer = Buffer.from(await data.arrayBuffer());
+  assertBusinessMediaSize(buffer.length);
+
+  let format: string | undefined;
+  try {
+    const meta = await sharp(buffer).metadata();
+    format = meta.format;
+  } catch {
+    throw new Error("Uploaded file is not a valid image.");
+  }
+
+  if (!format || !ALLOWED_FORMATS.has(format)) {
+    throw new Error("Unsupported image type. Use JPEG, PNG, WebP, or GIF.");
+  }
+}
+
 export async function registerBusinessMedia(input: {
   businessId: string;
   businessLocationId?: string | null;
@@ -40,6 +79,9 @@ export async function registerBusinessMedia(input: {
   altText?: string;
   approve?: boolean;
 }): Promise<string | null> {
+  assertBusinessMediaPathOwned(input.businessId, input.storagePath);
+  await assertBusinessMediaObjectValid(input.storagePath);
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("business_media")
@@ -84,11 +126,5 @@ export async function getSignedBusinessMediaUrl(storagePath: string): Promise<st
     return data.signedUrl;
   } catch {
     return null;
-  }
-}
-
-export function assertBusinessMediaSize(byteLength: number): void {
-  if (byteLength > MAX_BYTES) {
-    throw new Error("Image must be 5MB or smaller.");
   }
 }

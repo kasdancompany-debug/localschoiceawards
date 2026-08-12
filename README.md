@@ -72,6 +72,7 @@ Or run these SQL files in order in the Supabase SQL editor:
 17. `supabase/migrations/20260325240001_seed_suppliers.sql`
 18. `supabase/migrations/20260325250000_notifications.sql`
 19. `supabase/migrations/20260325250001_seed_email_templates.sql`
+20. `supabase/migrations/20260325260000_analytics_reporting.sql`
 
 7. In the Supabase dashboard, enable Email, Magic Link, and Google providers. Add redirect URLs:
 

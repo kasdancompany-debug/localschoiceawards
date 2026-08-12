@@ -24,6 +24,10 @@ export {
 } from "@/lib/communities/current";
 export { buildCommunityMetadata, getCommunityCanonicalUrl } from "@/lib/communities/metadata";
 export {
+  buildPublicCommunityUrl,
+  usesPathCommunityUrls,
+} from "@/lib/communities/path-mode";
+export {
   internalPathForHostnameKind,
   resolveTenantFromHostname,
   shouldPassthroughTenantRewrite,

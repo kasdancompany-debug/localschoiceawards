@@ -19,10 +19,11 @@ Locals Choice Awards is a single Next.js App Router application that serves mult
 | Email | Resend client, React Email templates, and event-driven notification queue | `lib/email`, `lib/notifications`, `emails/` |
 | Payments | Stripe client and webhook verification | `lib/payments` |
 | Security | Turnstile verification and related controls | `lib/security` |
-| Analytics | PostHog browser/server capture | `lib/analytics` |
+| Analytics | First-party events, daily metric rollups, PostHog, business/admin reporting | `lib/analytics` |
 | Types | Domain and generated-database types | `types` |
 | Migrations | PostgreSQL schema evolution | `supabase/migrations` |
-| Tests | Unit (Vitest) and end-to-end (Playwright) | `tests` |
+| Tests | Unit/integration (Vitest) and end-to-end (Playwright) | `tests` |
+| Ops docs | Security, deployment, operations, incidents, launch | `SECURITY.md`, `DEPLOYMENT.md`, `OPERATIONS.md`, `INCIDENT_RESPONSE.md`, `LAUNCH_CHECKLIST.md` |
 
 ## Multi-tenant community model
 
@@ -45,6 +46,7 @@ One codebase, many communities:
 15. Orders and Stripe Checkout (`orders`, `order_items`, `payments`, `refunds`, `webhook_events`) create pending orders with frozen snapshots, recalculate prices/shipping server-side before Checkout, collect addresses, enable Automatic Tax, and mark payment paid only after verified idempotent webhooks (`lib/orders`, `app/api/webhooks/stripe`). Success pages never authorize payment. Admin refunds never restore revoked award eligibility.
 16. Supplier fulfillment (`suppliers`, `supplier_products`, `fulfillments`, `shipments`, …) routes paid orders to CA/US suppliers by destination/availability/cost, generates protected artwork, submits via portal/email (API reserved), enforces idempotent production orders with RLS-scoped supplier access, records costs/margins, and emails tracking to customers (`lib/fulfillment`). Stripe Connect payouts are not implemented yet.
 17. Notifications (`notification_events`, `email_templates`, `email_deliveries`, `notification_preferences`) are event-driven: domain actions enqueue events; a processor sends via Resend with retries, dedupe keys, preference gates, unsubscribe for marketing, and webhook status updates (`lib/notifications`). Pages never send email directly. Scraped public directory emails are never used for campaigns without consent/legal basis. Winner sales sequences stop when an order is placed.
+18. Analytics (`analytics_events`, `business_profile_daily_metrics`, `community_daily_metrics`) record first-party engagement and funnel events, mirror to PostHog when configured, and power privacy-conscious business/admin dashboards (`lib/analytics`). Business dashboards never receive individual voter choices; financial reporting separates manufacturing cost, shipping margin, Stripe fees, refunds, and gross contribution.
 
 Local hostname setup: `docs/LOCAL_MULTITENANT_HOSTS.md`.
 

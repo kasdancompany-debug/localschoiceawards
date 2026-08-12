@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { Menu, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,14 @@ function NavLink({
   );
 }
 
+function BrandMark({ label }: { label: string }) {
+  return (
+    <span className="font-display block text-[1.35rem] leading-none font-semibold tracking-[0.04em] uppercase sm:text-[1.5rem]">
+      {label}
+    </span>
+  );
+}
+
 export function SiteHeader({
   brandHref = "/",
   brandLabel = "Locals Choice Awards",
@@ -61,32 +69,70 @@ export function SiteHeader({
   className,
 }: SiteHeaderProps) {
   const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        toggleRef.current?.focus();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    const firstLink = panelRef.current?.querySelector<HTMLElement>("a[href], button");
+    firstLink?.focus();
+
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-md",
+        "sticky top-0 z-40 border-b border-white/10 bg-ink text-primary-foreground",
         className,
       )}
     >
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-4">
-        <NavLink href={brandHref} className="min-w-0" onClick={() => setOpen(false)}>
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 sm:py-4">
+        <NavLink
+          href={brandHref}
+          className="min-w-0 text-primary-foreground"
+          onClick={() => setOpen(false)}
+        >
           {brandEyebrow ? (
-            <span className="block text-[0.7rem] font-medium tracking-[0.16em] text-muted-foreground uppercase">
+            <span className="mb-1 block text-[0.65rem] font-medium tracking-[0.22em] text-brass uppercase">
               {brandEyebrow}
             </span>
           ) : null}
-          <span className="font-heading block truncate text-lg font-semibold tracking-tight sm:text-xl">
-            {brandLabel}
-          </span>
+          <BrandMark label={brandLabel} />
         </NavLink>
 
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
+        <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
           {navItems.map((item) => (
             <NavLink
               key={`${item.href}-${item.label}`}
               href={item.href}
-              className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "text-sm")}
+              className="text-[0.8rem] font-medium tracking-[0.12em] text-primary-foreground/75 uppercase transition-colors hover:text-brass"
             >
               {item.label}
             </NavLink>
@@ -94,7 +140,7 @@ export function SiteHeader({
           {cta ? (
             <NavLink
               href={cta.href}
-              className={cn(buttonVariants({ size: "lg" }), "ml-2 h-11 px-5 text-sm")}
+              className="ml-2 border border-brass/70 px-4 py-2.5 text-[0.75rem] font-semibold tracking-[0.14em] text-brass uppercase transition-colors hover:bg-brass hover:text-ink"
             >
               {cta.label}
             </NavLink>
@@ -102,10 +148,14 @@ export function SiteHeader({
         </nav>
 
         <button
+          ref={toggleRef}
           type="button"
-          className={cn(buttonVariants({ variant: "outline", size: "icon-lg" }), "lg:hidden")}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "icon-lg" }),
+            "border-white/25 bg-transparent text-primary-foreground hover:bg-white/10 hover:text-primary-foreground lg:hidden",
+          )}
           aria-expanded={open}
-          aria-controls="mobile-nav"
+          aria-controls={menuId}
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((value) => !value)}
         >
@@ -115,8 +165,9 @@ export function SiteHeader({
 
       {open ? (
         <nav
-          id="mobile-nav"
-          className="border-t border-border/70 bg-background px-4 py-4 lg:hidden"
+          ref={panelRef}
+          id={menuId}
+          className="border-t border-white/10 bg-ink px-4 py-4 lg:hidden"
           aria-label="Mobile"
         >
           <ul className="flex flex-col gap-1">
@@ -124,7 +175,7 @@ export function SiteHeader({
               <li key={`${item.href}-${item.label}`}>
                 <NavLink
                   href={item.href}
-                  className="block rounded-lg px-3 py-3 text-base font-medium hover:bg-muted"
+                  className="block px-2 py-3 text-sm font-medium tracking-[0.12em] text-primary-foreground/85 uppercase hover:text-brass"
                   onClick={() => setOpen(false)}
                 >
                   {item.label}
@@ -132,10 +183,10 @@ export function SiteHeader({
               </li>
             ))}
             {cta ? (
-              <li className="pt-2">
+              <li className="pt-3">
                 <NavLink
                   href={cta.href}
-                  className={cn(buttonVariants({ size: "lg" }), "h-12 w-full text-base")}
+                  className="block border border-brass/70 px-4 py-3 text-center text-sm font-semibold tracking-[0.14em] text-brass uppercase"
                   onClick={() => setOpen(false)}
                 >
                   {cta.label}

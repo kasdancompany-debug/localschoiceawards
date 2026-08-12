@@ -5,7 +5,18 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env/server";
 
 function secret(): string {
-  return env.NOTIFICATIONS_CRON_SECRET || env.RESEND_API_KEY || "locals-choice-unsubscribe";
+  const value =
+    env.UNSUBSCRIBE_TOKEN_SECRET?.trim() ||
+    env.NOTIFICATIONS_CRON_SECRET?.trim() ||
+    "";
+  if (!value) {
+    if (env.NODE_ENV === "production") {
+      throw new Error("UNSUBSCRIBE_TOKEN_SECRET (or NOTIFICATIONS_CRON_SECRET) must be configured.");
+    }
+    // Dev/test only — never used when production secrets are present.
+    return "dev-only-unsubscribe-secret";
+  }
+  return value;
 }
 
 export function createUnsubscribeToken(userId: string): string {
@@ -17,7 +28,12 @@ export function createUnsubscribeToken(userId: string): string {
 export function verifyUnsubscribeToken(token: string): { ok: true; userId: string } | { ok: false } {
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return { ok: false };
-  const expected = createHmac("sha256", secret()).update(payload).digest("base64url");
+  let expected: string;
+  try {
+    expected = createHmac("sha256", secret()).update(payload).digest("base64url");
+  } catch {
+    return { ok: false };
+  }
   try {
     const a = Buffer.from(sig);
     const b = Buffer.from(expected);

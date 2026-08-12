@@ -4,12 +4,22 @@ import { env } from "@/lib/env/server";
 import { processQueuedNotificationEvents } from "@/lib/notifications/process";
 
 function authorized(request: Request): boolean {
-  const secret = env.NOTIFICATIONS_CRON_SECRET;
-  if (!secret) return env.NODE_ENV !== "production";
+  const configured =
+    env.NOTIFICATIONS_CRON_SECRET?.trim() || process.env.CRON_SECRET?.trim() || "";
+  if (!configured) {
+    return env.NODE_ENV !== "production";
+  }
   const header = request.headers.get("authorization");
   const bearer = header?.startsWith("Bearer ") ? header.slice(7) : null;
+  if (bearer && bearer === configured) {
+    return true;
+  }
+  // Query-string secrets leak via logs/referrers — reject in production.
+  if (env.NODE_ENV === "production") {
+    return false;
+  }
   const query = new URL(request.url).searchParams.get("secret");
-  return bearer === secret || query === secret;
+  return query === configured;
 }
 
 export async function POST(request: Request) {

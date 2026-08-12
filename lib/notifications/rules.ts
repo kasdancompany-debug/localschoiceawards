@@ -22,7 +22,8 @@ const TEMPLATE_GATES: Record<EmailTemplateKey, PreferenceGate> = {
   "business.claim_rejected": "business_updates",
   "business.team_invitation": "always",
   "campaign.nomination_received": "campaign_updates",
-  "campaign.business_nominated": "business_updates",
+  // Operational notice to the nominated business — always send when we have a contact email.
+  "campaign.business_nominated": "always",
   "campaign.finalist_announced": "campaign_updates",
   "campaign.voting_opened": "campaign_updates",
   "campaign.voting_reminder": "campaign_updates",

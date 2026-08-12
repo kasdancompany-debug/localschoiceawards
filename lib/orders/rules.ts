@@ -169,8 +169,18 @@ export function shouldRestoreEligibilityAfterRefund(): false {
   return false;
 }
 
+const DEFAULT_WEBHOOK_RECLAIM_MS = 5 * 60 * 1000;
+
+/**
+ * Idempotent webhook gate. In-flight `processing`/`received` events are skipped
+ * unless stuck past the reclaim TTL (crash/restart recovery).
+ */
 export function classifyWebhookDuplicate(input: {
   existingStatus: WebhookProcessingStatus | null;
+  lastAttemptAt?: string | null;
+  receivedAt?: string | null;
+  now?: Date;
+  reclaimAfterMs?: number;
 }): "process" | "duplicate_skip" {
   if (!input.existingStatus) {
     return "process";
@@ -181,6 +191,16 @@ export function classifyWebhookDuplicate(input: {
   if (input.existingStatus === "failed") {
     return "process";
   }
+
+  const reclaimAfterMs = input.reclaimAfterMs ?? DEFAULT_WEBHOOK_RECLAIM_MS;
+  const anchor = input.lastAttemptAt ?? input.receivedAt;
+  if (anchor) {
+    const age = (input.now ?? new Date()).getTime() - new Date(anchor).getTime();
+    if (Number.isFinite(age) && age >= reclaimAfterMs) {
+      return "process";
+    }
+  }
+
   // received / processing — treat as in-flight duplicate
   return "duplicate_skip";
 }

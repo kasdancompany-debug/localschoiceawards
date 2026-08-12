@@ -44,7 +44,10 @@ const defaultGroups: SiteFooterProps["linkGroups"] = [
 function FooterAnchor({ href, children }: { href: string; children: ReactNode }) {
   if (/^https?:\/\//i.test(href)) {
     return (
-      <a href={href} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+      <a
+        href={href}
+        className="text-sm tracking-wide text-primary-foreground/65 transition-colors hover:text-brass"
+      >
         {children}
       </a>
     );
@@ -53,7 +56,7 @@ function FooterAnchor({ href, children }: { href: string; children: ReactNode })
   return (
     <Link
       href={href as Route}
-      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+      className="text-sm tracking-wide text-primary-foreground/65 transition-colors hover:text-brass"
     >
       {children}
     </Link>
@@ -69,18 +72,22 @@ export function SiteFooter({
   const year = new Date().getFullYear();
 
   return (
-    <footer className={cn("mt-auto border-t border-border/80 bg-muted/50", className)}>
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
+    <footer className={cn("mt-auto bg-ink text-primary-foreground", className)}>
+      <div className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-14 sm:px-6 md:grid-cols-[1.5fr_1fr_1fr]">
         <div>
-          <p className="font-heading text-lg font-semibold tracking-tight">{brandLabel}</p>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+          <p className="font-display text-2xl font-semibold tracking-[0.06em] uppercase">
+            {brandLabel}
+          </p>
+          <p className="font-editorial mt-4 max-w-sm text-base leading-relaxed text-primary-foreground/65 italic">
             {description}
           </p>
         </div>
         {linkGroups?.map((group) => (
           <div key={group.title}>
-            <p className="text-sm font-semibold">{group.title}</p>
-            <ul className="mt-4 space-y-3">
+            <p className="text-[0.7rem] font-semibold tracking-[0.2em] text-brass uppercase">
+              {group.title}
+            </p>
+            <ul className="mt-5 space-y-3">
               {group.links.map((link) => (
                 <li key={`${group.title}-${link.href}`}>
                   <FooterAnchor href={link.href}>{link.label}</FooterAnchor>
@@ -90,8 +97,8 @@ export function SiteFooter({
           </div>
         ))}
       </div>
-      <div className="border-t border-border/60">
-        <p className="mx-auto max-w-6xl px-4 py-5 text-xs text-muted-foreground sm:px-6">
+      <div className="border-t border-white/10">
+        <p className="mx-auto max-w-6xl px-4 py-5 text-[0.7rem] tracking-[0.14em] text-primary-foreground/45 uppercase sm:px-6">
           © {year} Locals Choice Awards
         </p>
       </div>

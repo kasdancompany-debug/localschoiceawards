@@ -116,6 +116,18 @@ describe("webhook payment confirmation", () => {
     expect(classifyWebhookDuplicate({ existingStatus: "processed" })).toBe("duplicate_skip");
     expect(classifyWebhookDuplicate({ existingStatus: "ignored" })).toBe("duplicate_skip");
     expect(classifyWebhookDuplicate({ existingStatus: "failed" })).toBe("process");
+    expect(
+      classifyWebhookDuplicate({
+        existingStatus: "processing",
+        lastAttemptAt: new Date().toISOString(),
+      }),
+    ).toBe("duplicate_skip");
+    expect(
+      classifyWebhookDuplicate({
+        existingStatus: "processing",
+        lastAttemptAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      }),
+    ).toBe("process");
   });
 
   it("explains pending confirmation on the success page", () => {

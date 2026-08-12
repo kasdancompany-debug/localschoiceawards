@@ -109,6 +109,7 @@ export function mapWebhookEvent(row: WebhookRow): WebhookEventRecord {
     attempts: row.attempts,
     errorMessage: row.error_message,
     receivedAt: row.received_at,
+    lastAttemptAt: row.last_attempt_at,
     processedAt: row.processed_at,
   };
 }

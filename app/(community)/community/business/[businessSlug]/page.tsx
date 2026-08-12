@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BusinessEngagementTracker } from "@/components/analytics/business-engagement-tracker";
 import { EmptyState } from "@/components/empty-state";
 import { PageIntro, PageShell } from "@/components/layout/page-shell";
 import { buttonVariants } from "@/components/ui/button";
@@ -64,6 +65,11 @@ export default async function BusinessProfilePage({ params }: BusinessPageProps)
 
   return (
     <PageShell>
+      <BusinessEngagementTracker
+        businessId={business.id}
+        communityId={community.id}
+        businessLocationId={primaryLocation?.id ?? null}
+      />
       <div className="grid gap-10 lg:grid-cols-[1.4fr_0.8fr]">
         <div>
           <PageIntro
@@ -90,6 +96,7 @@ export default async function BusinessProfilePage({ params }: BusinessPageProps)
                 <dd className="mt-1">
                   <a
                     href={business.websiteUrl}
+                    data-analytics="website"
                     className="text-primary underline-offset-4 hover:underline"
                     rel="noopener noreferrer"
                     target="_blank"
@@ -102,7 +109,15 @@ export default async function BusinessProfilePage({ params }: BusinessPageProps)
             {business.primaryPhone || primaryLocation?.phone ? (
               <div>
                 <dt className="font-medium text-muted-foreground">Phone</dt>
-                <dd className="mt-1">{business.primaryPhone || primaryLocation?.phone}</dd>
+                <dd className="mt-1">
+                  <a
+                    href={`tel:${business.primaryPhone || primaryLocation?.phone}`}
+                    data-analytics="phone"
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    {business.primaryPhone || primaryLocation?.phone}
+                  </a>
+                </dd>
               </div>
             ) : null}
             {primaryLocation ? (
@@ -123,6 +138,30 @@ export default async function BusinessProfilePage({ params }: BusinessPageProps)
                       ]
                         .filter(Boolean)
                         .join(" · ") || primaryLocation.locationName}
+                  {!primaryLocation.serviceAreaBusiness &&
+                  primaryLocation.addressLine1 ? (
+                    <>
+                      {" · "}
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          [
+                            primaryLocation.addressLine1,
+                            primaryLocation.city,
+                            primaryLocation.administrativeRegionCode,
+                            primaryLocation.postalCode,
+                          ]
+                            .filter(Boolean)
+                            .join(", "),
+                        )}`}
+                        data-analytics="directions"
+                        className="text-primary underline-offset-4 hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Directions
+                      </a>
+                    </>
+                  ) : null}
                 </dd>
               </div>
             ) : null}
@@ -226,6 +265,12 @@ export default async function BusinessProfilePage({ params }: BusinessPageProps)
                 description="Award history appears here after audited results are published."
               />
             )}
+            <Link
+              href={toRoute(`/order/${business.slug}`)}
+              className={cn(buttonVariants({ size: "lg" }), "mt-5 inline-flex h-12 w-full px-5")}
+            >
+              Order awards or promote
+            </Link>
           </div>
 
           <div className="rounded-3xl border border-border/80 bg-muted/40 p-6">
@@ -234,14 +279,22 @@ export default async function BusinessProfilePage({ params }: BusinessPageProps)
             </h2>
             <p className="mt-3 text-sm text-muted-foreground">
               Claim this listing through the business portal. Domain email helps review but never
-              auto-approves.
+              auto-approves. To buy trophies or promote without claiming, use Order awards.
             </p>
-            <a
-              href={claimUrl}
-              className={cn(buttonVariants({ size: "lg" }), "mt-5 inline-flex h-12 px-5")}
-            >
-              Claim this business
-            </a>
+            <div className="mt-5 flex flex-col gap-3">
+              <Link
+                href={toRoute(`/order/${business.slug}`)}
+                className={cn(buttonVariants({ size: "lg" }), "inline-flex h-12 px-5")}
+              >
+                Order without login
+              </Link>
+              <a
+                href={claimUrl}
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "inline-flex h-12 px-5")}
+              >
+                Claim this business
+              </a>
+            </div>
           </div>
         </aside>
       </div>

@@ -40,11 +40,15 @@ async function beginWebhookProcessing(input: {
   const existing = await findWebhookEvent(input.event.id);
   const classification = classifyWebhookDuplicate({
     existingStatus: existing?.processingStatus ?? null,
+    lastAttemptAt: existing?.lastAttemptAt ?? null,
+    receivedAt: existing?.receivedAt ?? null,
   });
 
   if (classification === "duplicate_skip" && existing) {
     return { proceed: false, webhookEventId: existing.id };
   }
+
+  const nowIso = new Date().toISOString();
 
   if (existing) {
     await admin
@@ -53,6 +57,7 @@ async function beginWebhookProcessing(input: {
         processing_status: "processing",
         attempts: existing.attempts + 1,
         error_message: null,
+        last_attempt_at: nowIso,
       })
       .eq("id", existing.id);
     return { proceed: true, webhookEventId: existing.id };
@@ -67,6 +72,7 @@ async function beginWebhookProcessing(input: {
       payload_hash: hashWebhookPayload(input.payload),
       processing_status: "processing",
       attempts: 1,
+      last_attempt_at: nowIso,
     })
     .select("id")
     .maybeSingle();
@@ -74,7 +80,14 @@ async function beginWebhookProcessing(input: {
   if (error) {
     // Unique conflict — another worker inserted first.
     const raced = await findWebhookEvent(input.event.id);
-    if (raced && classifyWebhookDuplicate({ existingStatus: raced.processingStatus }) === "duplicate_skip") {
+    if (
+      raced &&
+      classifyWebhookDuplicate({
+        existingStatus: raced.processingStatus,
+        lastAttemptAt: raced.lastAttemptAt,
+        receivedAt: raced.receivedAt,
+      }) === "duplicate_skip"
+    ) {
       return { proceed: false, webhookEventId: raced.id };
     }
     return { proceed: false, webhookEventId: null };
@@ -192,6 +205,8 @@ async function markOrderPaidFromSession(session: Stripe.Checkout.Session) {
   if (customerEmail) {
     const { softEmitNotificationEvent } = await import("@/lib/notifications/emit");
     const { cancelWinnerSalesSequenceForUser } = await import("@/lib/notifications/winner-sales");
+    const { softTrackAnalyticsEvent } = await import("@/lib/analytics/track");
+    const { ANALYTICS_EVENTS } = await import("@/lib/analytics/events");
     await softEmitNotificationEvent({
       eventType: "commerce.payment_confirmed",
       aggregateType: "order",
@@ -218,6 +233,24 @@ async function markOrderPaidFromSession(session: Stripe.Checkout.Session) {
     if (order.user_id) {
       await cancelWinnerSalesSequenceForUser({ userId: order.user_id });
     }
+    await softTrackAnalyticsEvent({
+      eventName: ANALYTICS_EVENTS.funnelOrderPaid,
+      userId: order.user_id,
+      businessId: order.business_id,
+      properties: {
+        order_id: orderId,
+        order_number: order.order_number,
+        total_cents: order.total_cents,
+      },
+    });
+    await softTrackAnalyticsEvent({
+      eventName: ANALYTICS_EVENTS.winnerProductPurchase,
+      userId: order.user_id,
+      businessId: order.business_id,
+      properties: {
+        order_id: orderId,
+      },
+    });
   }
 
   // First successful payment confirmation only (duplicates return earlier).
@@ -358,6 +391,21 @@ export async function processStripeWebhookEvent(input: {
     switch (input.event.type) {
       case "checkout.session.completed": {
         const session = input.event.data.object as Stripe.Checkout.Session;
+        if (session.mode === "subscription" || session.metadata?.kind === "business_promotion") {
+          const { activatePromotionFromCheckoutSession } = await import(
+            "@/lib/promotions/service"
+          );
+          const result = await activatePromotionFromCheckoutSession(session);
+          if (!result.ok) {
+            await finishWebhookProcessing({
+              webhookEventId: gate.webhookEventId,
+              status: "failed",
+              errorMessage: result.message,
+            });
+            return { ok: false, message: result.message };
+          }
+          break;
+        }
         if (session.payment_status === "paid" || session.status === "complete") {
           const result = await markOrderPaidFromSession(session);
           if (!result.ok) {
@@ -369,6 +417,14 @@ export async function processStripeWebhookEvent(input: {
             return { ok: false, message: result.message };
           }
         }
+        break;
+      }
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted": {
+        const subscription = input.event.data.object as Stripe.Subscription;
+        const { syncPromotionFromSubscription } = await import("@/lib/promotions/service");
+        await syncPromotionFromSubscription(subscription);
         break;
       }
       case "checkout.session.async_payment_succeeded": {

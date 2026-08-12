@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 
 import { BusinessDirectory } from "@/components/businesses/business-directory";
 import { EmptyState } from "@/components/empty-state";
 import { PageIntro, PageShell } from "@/components/layout/page-shell";
-import { buttonVariants } from "@/components/ui/button";
+import { NominateDialog } from "@/components/nominations/nominate-dialog";
+import { buildLoginPath } from "@/lib/auth/redirects";
+import { getAuthenticatedSession } from "@/lib/auth/session";
 import { listBusinessesForCategory } from "@/lib/businesses";
 import { getPublicCampaignCategoryBySlug } from "@/lib/campaigns/categories";
 import { getPublicCampaignForCommunity } from "@/lib/campaigns/service";
+import { resolveCampaignState } from "@/lib/campaigns/state";
 import { getCurrentCommunity } from "@/lib/communities/current";
 import { buildCommunityMetadata } from "@/lib/communities/metadata";
-import { toRoute } from "@/lib/routes";
-import { cn } from "@/lib/utils";
 
 type CategoryPageProps = {
   params: Promise<{ categorySlug: string }>;
@@ -59,6 +59,10 @@ export default async function CommunityCategoryPage({ params }: CategoryPageProp
     communityId: community.id,
     categorySlug: category.displaySlug,
   });
+  const session = await getAuthenticatedSession();
+  const campaignState = resolveCampaignState(campaign);
+  const nominationsOpen = campaignState.activePhase === "nomination";
+  const loginHref = buildLoginPath(`/category/${category.displaySlug}`);
 
   return (
     <PageShell>
@@ -78,18 +82,34 @@ export default async function CommunityCategoryPage({ params }: CategoryPageProp
             showSearch
             emptyTitle="No businesses in this category yet"
             emptyDescription="Approved listings will appear here as the directory grows."
+            nominate={{
+              campaignCategoryId: category.id,
+              categoryName: category.displayName,
+              categorySlug: category.displaySlug,
+              isAuthenticated: Boolean(session),
+              emailConfirmed: Boolean(session?.emailConfirmed),
+              loginHref,
+              nominationsOpen,
+            }}
           />
         ) : (
           <EmptyState
             title="No businesses listed yet"
-            description="Know a business that belongs here? Submit it for review."
+            description="Know a business that belongs here? Nominate it and we’ll add it to the list and email them."
             action={
-              <Link
-                href={toRoute("/missing-business")}
-                className={cn(buttonVariants({ size: "lg" }), "h-12 px-6")}
-              >
-                Submit a missing business
-              </Link>
+              nominationsOpen ? (
+                <NominateDialog
+                  mode="new"
+                  campaignCategoryId={category.id}
+                  categoryName={category.displayName}
+                  categorySlug={category.displaySlug}
+                  isAuthenticated={Boolean(session)}
+                  emailConfirmed={Boolean(session?.emailConfirmed)}
+                  loginHref={loginHref}
+                  nominationsOpen={nominationsOpen}
+                  triggerLabel="Nominate a business"
+                />
+              ) : undefined
             }
           />
         )}

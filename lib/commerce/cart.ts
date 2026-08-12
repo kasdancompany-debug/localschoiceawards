@@ -338,8 +338,10 @@ export async function addItemToCart(input: {
   return { ok: true, cartId: cart.id };
 }
 
-async function loadActiveEligibility(eligibilityId: string, userId: string | null) {
+async function loadActiveEligibility(eligibilityId: string, _userId: string | null) {
   const admin = createSupabaseAdminClient();
+  // Public directory ordering: any active published eligibility can personalize products.
+  // Membership is not required — search → business → add awards → pay (CommunityVotes-style).
   const { data } = await admin
     .from("award_eligibilities")
     .select("*")
@@ -347,25 +349,7 @@ async function loadActiveEligibility(eligibilityId: string, userId: string | nul
     .eq("eligibility_status", "active")
     .maybeSingle();
 
-  if (!data) {
-    return null;
-  }
-
-  if (!userId) {
-    // Anonymous shoppers can stage eligibility-bound items only after login for checkout,
-    // but may add when eligibility id is known and still active.
-    return data;
-  }
-
-  const { data: membership } = await admin
-    .from("business_memberships")
-    .select("id")
-    .eq("business_id", data.business_id)
-    .eq("user_id", userId)
-    .eq("status", "active")
-    .maybeSingle();
-
-  return membership ? data : null;
+  return data ?? null;
 }
 
 export async function updateCartItemQuantity(input: {

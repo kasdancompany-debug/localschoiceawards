@@ -19,7 +19,29 @@ export const metadata: Metadata = {
 
 export default async function CartPage() {
   const session = await getAuthenticatedSession();
-  const { cart, lines } = await listCartLines({ userId: session?.userId ?? null });
+  let cartView: Awaited<ReturnType<typeof listCartLines>> | null = null;
+  try {
+    cartView = await listCartLines({ userId: session?.userId ?? null });
+  } catch {
+    cartView = null;
+  }
+
+  if (!cartView) {
+    return (
+      <PageShell>
+        <PageIntro
+          eyebrow="Checkout prep"
+          title="Cart"
+          description="Your cart is temporarily unavailable. Please try again in a moment."
+        />
+        <Link href={toRoute("/awards")} className={cn(buttonVariants({ variant: "outline" }))}>
+          Browse awards
+        </Link>
+      </PageShell>
+    );
+  }
+
+  const { cart, lines } = cartView;
   const selectedQuoteId = await readSelectedShippingQuoteId();
   const selected = await getShippingQuoteForCart({
     cartId: cart.id,

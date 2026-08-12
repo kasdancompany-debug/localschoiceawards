@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth/session";
 import { getPublicCampaignForCommunity } from "@/lib/campaigns/service";
 import { getCurrentCommunity } from "@/lib/communities/current";
+import { isPilotCommunityId } from "@/lib/pilot/ids";
 import {
   createMissingBusinessNomination,
   createNomination,
@@ -19,6 +20,10 @@ import {
   recordFraudSignal,
   reviewFraudSignal,
 } from "@/lib/nominations/service";
+import {
+  createPilotMissingBusinessNomination,
+  createPilotNomination,
+} from "@/lib/nominations/pilot";
 import { hashIpFingerprint } from "@/lib/nominations/privacy";
 import { toRoute } from "@/lib/routes";
 import { assertAppRateLimit } from "@/lib/security/rate-limit";
@@ -29,12 +34,14 @@ import {
   reviewFraudSignalSchema,
   suggestMissingBusinessNominationSchema,
 } from "@/lib/validation/nominations";
+import type { PublicBusinessListing } from "@/types/business";
 
 export type NominationActionState = {
   ok: boolean;
   message?: string;
   nominationId?: string;
   status?: string;
+  listing?: PublicBusinessListing;
 };
 
 async function getRequestIp(): Promise<string | undefined> {
@@ -60,8 +67,9 @@ export async function createNominationAction(
   }
 
   const session = await getAuthenticatedSession();
+  const returnPath = String(formData.get("returnPath") || "/nominate");
   if (!session) {
-    redirect(toRoute(buildLoginPath("/nominate")));
+    redirect(toRoute(buildLoginPath(returnPath)));
   }
   if (!session.emailConfirmed) {
     return { ok: false, message: "Verify your email before nominating." };
@@ -70,6 +78,7 @@ export async function createNominationAction(
   const parsed = createNominationSchema.safeParse({
     campaignCategoryId: formData.get("campaignCategoryId"),
     businessLocationId: formData.get("businessLocationId"),
+    businessEmail: formData.get("businessEmail") || "",
     turnstileToken: formData.get("turnstileToken"),
   });
   if (!parsed.success) {
@@ -96,16 +105,44 @@ export async function createNominationAction(
     return { ok: false, message: "Security check failed. Please try again." };
   }
 
-  const rate = await assertAppRateLimit({
-    action: "nominate",
-    identifier: session.userId,
-    ipAddress: ip,
-  });
+  const rate = isPilotCommunityId(community.id)
+    ? { allowed: true as const, remaining: 99, retryAfterSeconds: 0 }
+    : await assertAppRateLimit({
+        action: "nominate",
+        identifier: session.userId,
+        ipAddress: ip,
+      });
   if (!rate.allowed) {
     return {
       ok: false,
       message: `Too many nominations. Try again in ${rate.retryAfterSeconds} seconds.`,
     };
+  }
+
+  const inline = formData.get("inline") === "1";
+
+  if (isPilotCommunityId(community.id)) {
+    const result = await createPilotNomination({
+      communityId: community.id,
+      communityName: community.name,
+      userId: session.userId,
+      email: session.email,
+      campaignCategoryId: parsed.data.campaignCategoryId,
+      businessLocationId: parsed.data.businessLocationId,
+      businessEmail: parsed.data.businessEmail || null,
+    });
+    if (!result.ok) {
+      return { ok: false, message: result.message };
+    }
+    if (inline) {
+      return {
+        ok: true,
+        nominationId: result.nominationId,
+        status: result.status,
+        message: "Nomination submitted. We emailed the business.",
+      };
+    }
+    redirect(toRoute(`/nominate/success?id=${result.nominationId}`));
   }
 
   const campaign = await getPublicCampaignForCommunity(community.id);
@@ -116,16 +153,27 @@ export async function createNominationAction(
   const result = await createNomination({
     campaign,
     communityId: community.id,
+    communityName: community.name,
     userId: session.userId,
     email: session.email,
     emailConfirmed: session.emailConfirmed,
     campaignCategoryId: parsed.data.campaignCategoryId,
     businessLocationId: parsed.data.businessLocationId,
+    businessEmail: parsed.data.businessEmail || null,
     ipAddress: ip,
   });
 
   if (!result.ok) {
     return { ok: false, message: result.message };
+  }
+
+  if (inline) {
+    return {
+      ok: true,
+      nominationId: result.nominationId,
+      status: result.status,
+      message: "Nomination submitted. We emailed the business.",
+    };
   }
 
   redirect(toRoute(`/nominate/success?id=${result.nominationId}`));
@@ -141,8 +189,9 @@ export async function suggestMissingBusinessNominationAction(
   }
 
   const session = await getAuthenticatedSession();
+  const returnPath = String(formData.get("returnPath") || "/nominate");
   if (!session) {
-    redirect(toRoute(buildLoginPath("/nominate")));
+    redirect(toRoute(buildLoginPath(returnPath)));
   }
   if (!session.emailConfirmed) {
     return { ok: false, message: "Verify your email before nominating." };
@@ -154,6 +203,7 @@ export async function suggestMissingBusinessNominationAction(
     address: formData.get("address") || "",
     websiteUrl: formData.get("websiteUrl") || "",
     phone: formData.get("phone") || "",
+    businessEmail: formData.get("businessEmail"),
     turnstileToken: formData.get("turnstileToken"),
   });
   if (!parsed.success) {
@@ -166,16 +216,48 @@ export async function suggestMissingBusinessNominationAction(
     return { ok: false, message: "Security check failed. Please try again." };
   }
 
-  const rate = await assertAppRateLimit({
-    action: "nominate_suggest",
-    identifier: session.userId,
-    ipAddress: ip,
-  });
+  const rate = isPilotCommunityId(community.id)
+    ? { allowed: true as const, remaining: 99, retryAfterSeconds: 0 }
+    : await assertAppRateLimit({
+        action: "nominate_suggest",
+        identifier: session.userId,
+        ipAddress: ip,
+      });
   if (!rate.allowed) {
     return {
       ok: false,
       message: `Too many suggestions. Try again in ${rate.retryAfterSeconds} seconds.`,
     };
+  }
+
+  const inline = formData.get("inline") === "1";
+
+  if (isPilotCommunityId(community.id)) {
+    const result = await createPilotMissingBusinessNomination({
+      communityId: community.id,
+      communityName: community.name,
+      userId: session.userId,
+      email: session.email,
+      campaignCategoryId: parsed.data.campaignCategoryId,
+      businessName: parsed.data.businessName,
+      address: parsed.data.address || null,
+      websiteUrl: parsed.data.websiteUrl || null,
+      phone: parsed.data.phone || null,
+      businessEmail: parsed.data.businessEmail,
+    });
+    if (!result.ok) {
+      return { ok: false, message: result.message };
+    }
+    if (inline) {
+      return {
+        ok: true,
+        nominationId: result.nominationId,
+        status: result.status,
+        listing: result.listing,
+        message: "Business added to the list and notified by email.",
+      };
+    }
+    redirect(toRoute(`/nominate/success?id=${result.nominationId}`));
   }
 
   const campaign = await getPublicCampaignForCommunity(community.id);
@@ -186,6 +268,7 @@ export async function suggestMissingBusinessNominationAction(
   const result = await createMissingBusinessNomination({
     campaign,
     communityId: community.id,
+    communityName: community.name,
     userId: session.userId,
     email: session.email,
     emailConfirmed: session.emailConfirmed,
@@ -194,6 +277,7 @@ export async function suggestMissingBusinessNominationAction(
     address: parsed.data.address || null,
     websiteUrl: parsed.data.websiteUrl || null,
     phone: parsed.data.phone || null,
+    businessEmail: parsed.data.businessEmail,
     ipAddress: ip,
   });
 
@@ -201,7 +285,16 @@ export async function suggestMissingBusinessNominationAction(
     return { ok: false, message: result.message };
   }
 
-  redirect(toRoute(`/nominate/success?id=${result.nominationId}&pending=1`));
+  if (inline) {
+    return {
+      ok: true,
+      nominationId: result.nominationId,
+      status: result.status,
+      message: "Business added to the list and notified by email.",
+    };
+  }
+
+  redirect(toRoute(`/nominate/success?id=${result.nominationId}`));
 }
 
 export async function invalidateNominationAction(

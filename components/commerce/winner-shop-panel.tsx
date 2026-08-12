@@ -99,8 +99,8 @@ export function WinnerShopPanel({
           ) : (
             <p className="text-sm text-muted-foreground">
               {signedIn
-                ? "No active award eligibilities on your businesses yet."
-                : "Sign in with a business account that has a published win, or continue from the business awards portal."}
+                ? "No active award eligibilities on your businesses yet. You can also search any business from Order & promote."
+                : "Search your business under Order & promote to add awards without signing in, or sign in to load membership wins."}
             </p>
           )}
           <p className="text-xs text-muted-foreground">

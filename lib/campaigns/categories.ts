@@ -20,6 +20,11 @@ export async function listPublicCampaignCategories(
     return [];
   }
 
+  if (campaign.communityId.startsWith("pilot-")) {
+    const { listPilotPublicCategories } = await import("@/lib/pilot/directory-catalog");
+    return listPilotPublicCategories(campaign);
+  }
+
   try {
     const supabase = await createSupabaseServerClient();
     const query = supabase

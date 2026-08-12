@@ -271,7 +271,14 @@ export async function registerManagedMediaAction(input: {
 }) {
   const session = await requireUser({ next: "/businesses" });
   await requireBusinessMembership(input.businessId, session.userId, { edit: true });
-  const id = await registerBusinessMedia({ ...input, approve: true });
-  revalidatePath(`/business/businesses/${input.businessId}/assets`);
-  return { id };
+  try {
+    const id = await registerBusinessMedia({ ...input, approve: true });
+    revalidatePath(`/business/businesses/${input.businessId}/assets`);
+    return { id };
+  } catch (error) {
+    return {
+      id: null,
+      message: error instanceof Error ? error.message : "Unable to register media.",
+    };
+  }
 }

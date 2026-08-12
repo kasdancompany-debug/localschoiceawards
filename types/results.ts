@@ -94,6 +94,8 @@ export type AwardAsset = {
 
 export type PublicWinnerView = {
   resultId: string;
+  /** Active award eligibility id when present — used for public trophy ordering. */
+  eligibilityId?: string | null;
   placement: ResultPlacement;
   tied: boolean;
   validVoteCount: number | null;

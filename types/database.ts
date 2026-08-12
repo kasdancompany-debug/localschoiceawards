@@ -1287,6 +1287,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      business_promotions: {
+        Row: {
+          id: string;
+          business_id: string;
+          community_id: string;
+          customer_email: string;
+          user_id: string | null;
+          currency_code: string;
+          amount_cents: number;
+          status: "incomplete" | "active" | "past_due" | "canceled" | "unpaid";
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          stripe_checkout_session_id: string | null;
+          current_period_end: string | null;
+          canceled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          community_id: string;
+          customer_email: string;
+          user_id?: string | null;
+          currency_code: string;
+          amount_cents: number;
+          status?: "incomplete" | "active" | "past_due" | "canceled" | "unpaid";
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          stripe_checkout_session_id?: string | null;
+          current_period_end?: string | null;
+          canceled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          community_id?: string;
+          customer_email?: string;
+          user_id?: string | null;
+          currency_code?: string;
+          amount_cents?: number;
+          status?: "incomplete" | "active" | "past_due" | "canceled" | "unpaid";
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          stripe_checkout_session_id?: string | null;
+          current_period_end?: string | null;
+          canceled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       business_memberships: {
         Row: {
           id: string;
@@ -1917,6 +1971,7 @@ export type Database = {
           requires_shipping: boolean;
           featured: boolean;
           max_quantity: number;
+          billing_interval: "month" | "year" | null;
           created_at: string;
           updated_at: string;
         };
@@ -1931,6 +1986,7 @@ export type Database = {
           requires_shipping?: boolean;
           featured?: boolean;
           max_quantity?: number;
+          billing_interval?: "month" | "year" | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1945,6 +2001,7 @@ export type Database = {
           requires_shipping?: boolean;
           featured?: boolean;
           max_quantity?: number;
+          billing_interval?: "month" | "year" | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2264,7 +2321,7 @@ export type Database = {
         Row: {
           id: string;
           order_number: string;
-          user_id: string;
+          user_id: string | null;
           business_id: string | null;
           cart_id: string | null;
           currency_code: "CAD" | "USD";
@@ -2310,7 +2367,7 @@ export type Database = {
         Insert: {
           id?: string;
           order_number: string;
-          user_id: string;
+          user_id?: string | null;
           business_id?: string | null;
           cart_id?: string | null;
           currency_code: "CAD" | "USD";
@@ -2356,7 +2413,7 @@ export type Database = {
         Update: {
           id?: string;
           order_number?: string;
-          user_id?: string;
+          user_id?: string | null;
           business_id?: string | null;
           cart_id?: string | null;
           currency_code?: "CAD" | "USD";
@@ -2469,6 +2526,7 @@ export type Database = {
             | "canceled"
             | "refunded"
             | "partially_refunded";
+          fee_cents: number | null;
           metadata: Json;
           created_at: string;
           updated_at: string;
@@ -2487,6 +2545,7 @@ export type Database = {
             | "canceled"
             | "refunded"
             | "partially_refunded";
+          fee_cents?: number | null;
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
@@ -2505,6 +2564,7 @@ export type Database = {
             | "canceled"
             | "refunded"
             | "partially_refunded";
+          fee_cents?: number | null;
           metadata?: Json;
           created_at?: string;
           updated_at?: string;
@@ -2584,6 +2644,7 @@ export type Database = {
           attempts: number;
           error_message: string | null;
           received_at: string;
+          last_attempt_at: string | null;
           processed_at: string | null;
         };
         Insert: {
@@ -2596,6 +2657,7 @@ export type Database = {
           attempts?: number;
           error_message?: string | null;
           received_at?: string;
+          last_attempt_at?: string | null;
           processed_at?: string | null;
         };
         Update: {
@@ -2608,6 +2670,7 @@ export type Database = {
           attempts?: number;
           error_message?: string | null;
           received_at?: string;
+          last_attempt_at?: string | null;
           processed_at?: string | null;
         };
         Relationships: [];
@@ -3242,6 +3305,129 @@ export type Database = {
         };
         Relationships: [];
       };
+      analytics_events: {
+        Row: {
+          id: string;
+          event_name: string;
+          community_id: string | null;
+          campaign_id: string | null;
+          business_id: string | null;
+          user_id: string | null;
+          anonymous_id: string | null;
+          properties: Json;
+          occurred_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_name: string;
+          community_id?: string | null;
+          campaign_id?: string | null;
+          business_id?: string | null;
+          user_id?: string | null;
+          anonymous_id?: string | null;
+          properties?: Json;
+          occurred_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_name?: string;
+          community_id?: string | null;
+          campaign_id?: string | null;
+          business_id?: string | null;
+          user_id?: string | null;
+          anonymous_id?: string | null;
+          properties?: Json;
+          occurred_at?: string;
+        };
+        Relationships: [];
+      };
+      business_profile_daily_metrics: {
+        Row: {
+          id: string;
+          business_id: string;
+          business_location_id: string | null;
+          date: string;
+          profile_views: number;
+          website_clicks: number;
+          phone_clicks: number;
+          direction_clicks: number;
+          nomination_link_clicks: number;
+          voting_link_clicks: number;
+          asset_downloads: number;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          business_location_id?: string | null;
+          date: string;
+          profile_views?: number;
+          website_clicks?: number;
+          phone_clicks?: number;
+          direction_clicks?: number;
+          nomination_link_clicks?: number;
+          voting_link_clicks?: number;
+          asset_downloads?: number;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          business_location_id?: string | null;
+          date?: string;
+          profile_views?: number;
+          website_clicks?: number;
+          phone_clicks?: number;
+          direction_clicks?: number;
+          nomination_link_clicks?: number;
+          voting_link_clicks?: number;
+          asset_downloads?: number;
+        };
+        Relationships: [];
+      };
+      community_daily_metrics: {
+        Row: {
+          id: string;
+          community_id: string;
+          campaign_id: string | null;
+          date: string;
+          visitors: number;
+          registered_users: number;
+          nominations: number;
+          voters: number;
+          votes: number;
+          claimed_businesses: number;
+          orders: number;
+          revenue_cents: number;
+        };
+        Insert: {
+          id?: string;
+          community_id: string;
+          campaign_id?: string | null;
+          date: string;
+          visitors?: number;
+          registered_users?: number;
+          nominations?: number;
+          voters?: number;
+          votes?: number;
+          claimed_businesses?: number;
+          orders?: number;
+          revenue_cents?: number;
+        };
+        Update: {
+          id?: string;
+          community_id?: string;
+          campaign_id?: string | null;
+          date?: string;
+          visitors?: number;
+          registered_users?: number;
+          nominations?: number;
+          voters?: number;
+          votes?: number;
+          claimed_businesses?: number;
+          orders?: number;
+          revenue_cents?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -3322,6 +3508,16 @@ export type Database = {
       is_supplier_member: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      bump_business_profile_daily_metric: {
+        Args: {
+          p_business_id: string;
+          p_business_location_id: string | null;
+          p_date: string;
+          p_column: string;
+          p_delta?: number;
+        };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

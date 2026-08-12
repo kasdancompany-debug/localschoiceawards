@@ -23,6 +23,8 @@ import {
 function revalidateCommercePaths() {
   revalidatePath("/cart");
   revalidatePath("/awards");
+  revalidatePath("/order");
+  revalidatePath("/checkout");
 }
 
 export type CommerceActionState = {

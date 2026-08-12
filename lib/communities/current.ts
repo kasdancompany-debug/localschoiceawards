@@ -4,11 +4,17 @@ import { headers } from "next/headers";
 
 import { parseHostname } from "@/lib/communities/hostname";
 import { getPublicCommunityBySubdomain } from "@/lib/communities/service";
+import {
+  COMMUNITY_SUBDOMAIN_HEADER,
+  HOSTNAME_KIND_HEADER,
+} from "@/lib/communities/tenant-headers";
 import { env } from "@/lib/env/server";
 import type { Community } from "@/types/community";
 
-export const COMMUNITY_SUBDOMAIN_HEADER = "x-community-subdomain";
-export const HOSTNAME_KIND_HEADER = "x-hostname-kind";
+export {
+  COMMUNITY_SUBDOMAIN_HEADER,
+  HOSTNAME_KIND_HEADER,
+} from "@/lib/communities/tenant-headers";
 
 /**
  * Returns the community for the current hostname.

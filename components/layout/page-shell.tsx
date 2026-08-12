@@ -32,15 +32,17 @@ export function PageIntro({ eyebrow, title, description }: PageIntroProps) {
   return (
     <header className="max-w-3xl">
       {eyebrow ? (
-        <p className="text-sm font-medium tracking-[0.16em] text-muted-foreground uppercase">
+        <p className="text-[0.7rem] font-semibold tracking-[0.22em] text-brass uppercase">
           {eyebrow}
         </p>
       ) : null}
-      <h1 className="font-heading mt-3 text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+      <h1 className="font-display mt-4 text-4xl font-semibold tracking-[0.03em] text-balance uppercase sm:text-5xl">
         {title}
       </h1>
       {description ? (
-        <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{description}</p>
+        <p className="font-editorial mt-5 text-lg leading-relaxed text-muted-foreground italic">
+          {description}
+        </p>
       ) : null}
     </header>
   );

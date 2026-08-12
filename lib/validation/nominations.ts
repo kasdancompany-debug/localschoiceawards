@@ -3,6 +3,14 @@ import { z } from "zod";
 export const createNominationSchema = z.object({
   campaignCategoryId: z.string().uuid(),
   businessLocationId: z.string().uuid().optional().or(z.literal("")),
+  businessEmail: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .refine((value) => !value || z.string().email().safeParse(value).success, {
+      message: "Enter a valid business email.",
+    }),
   turnstileToken: z.string().min(1, "Complete the security check."),
 });
 
@@ -22,6 +30,7 @@ export const suggestMissingBusinessNominationSchema = z.object({
       message: "Enter a valid website URL.",
     }),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
+  businessEmail: z.string().trim().email("Enter the business email so we can notify them."),
   turnstileToken: z.string().min(1, "Complete the security check."),
 });
 

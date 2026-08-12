@@ -32,7 +32,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CommunitySearchPage({ searchParams }: SearchPageProps) {
   const community = await getCurrentCommunity();
   if (!community) {
-    return null;
+    return (
+      <PageShell>
+        <PageIntro title="Search" description="Community not available." />
+      </PageShell>
+    );
   }
 
   const params = await searchParams;

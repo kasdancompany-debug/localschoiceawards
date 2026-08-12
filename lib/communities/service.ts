@@ -57,10 +57,12 @@ function asCommunityRecord(data: unknown): CommunityRecord | null {
 }
 
 function allowPilotCatalogFallback(): boolean {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   return (
     process.env.NODE_ENV === "development" ||
     process.env.SKIP_ENV_VALIDATION === "true" ||
-    process.env.USE_PILOT_COMMUNITY_CATALOG === "true"
+    process.env.USE_PILOT_COMMUNITY_CATALOG === "true" ||
+    supabaseUrl.includes("placeholder.supabase.co")
   );
 }
 

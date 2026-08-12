@@ -18,11 +18,9 @@ type MainLayoutProps = {
 
 const mainNav = [
   { href: toRoute("/communities"), label: "Communities" },
-  { href: toRoute("/awards"), label: "Awards" },
   { href: toRoute("/how-it-works"), label: "How it works" },
-  { href: toRoute("/partners"), label: "Partners" },
+  { href: toRoute("/awards"), label: "Awards" },
   { href: toRoute("/about"), label: "About" },
-  { href: toRoute("/contact"), label: "Contact" },
   { href: toRoute("/cart"), label: "Cart" },
 ];
 

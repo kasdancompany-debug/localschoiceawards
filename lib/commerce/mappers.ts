@@ -33,6 +33,7 @@ export function mapProduct(row: ProductRow): Product {
     requiresShipping: row.requires_shipping,
     featured: row.featured,
     maxQuantity: row.max_quantity,
+    billingInterval: row.billing_interval ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

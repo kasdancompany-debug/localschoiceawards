@@ -2,8 +2,8 @@ import "server-only";
 
 import { withSoftTimeout } from "@/lib/async/soft-timeout";
 import { createSupabaseServerClient } from "@/lib/database/supabase/server";
-import { buildCommunityHostname } from "@/lib/communities/hostname";
 import { mapCommunityRecord, type CommunityRecord } from "@/lib/communities/mappers";
+import { buildPublicCommunityUrl } from "@/lib/communities/path-mode";
 import {
   getPilotCommunityAliases,
   PILOT_COMMUNITIES,
@@ -12,7 +12,6 @@ import {
   isCommunityMarketActive,
   type CommunitySearchRecord,
 } from "@/lib/communities/search";
-import { env } from "@/lib/env/server";
 import { isCommunityPubliclyAvailable, type Community } from "@/types/community";
 
 const COMMUNITY_SELECT = `
@@ -56,10 +55,12 @@ const COMMUNITY_SELECT = `
 `;
 
 function allowPilotCatalogFallback(): boolean {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   return (
     process.env.NODE_ENV === "development" ||
     process.env.SKIP_ENV_VALIDATION === "true" ||
-    process.env.USE_PILOT_COMMUNITY_CATALOG === "true"
+    process.env.USE_PILOT_COMMUNITY_CATALOG === "true" ||
+    supabaseUrl.includes("placeholder.supabase.co")
   );
 }
 
@@ -67,9 +68,7 @@ function communityUrl(community: Community): string | null {
   if (!isCommunityMarketActive(community.marketStatus)) {
     return null;
   }
-  const root = env.NEXT_PUBLIC_ROOT_DOMAIN;
-  const protocol = root.includes("localhost") ? "http" : "https";
-  return buildCommunityHostname(community.subdomain, root, protocol);
+  return buildPublicCommunityUrl(community.subdomain);
 }
 
 export function toCommunitySearchRecord(

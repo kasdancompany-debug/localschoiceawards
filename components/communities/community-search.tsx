@@ -56,33 +56,33 @@ export function CommunitySearch({
   const deferredQuery = useDeferredValue(query);
   const [catalog, setCatalog] = useState<CommunitySearchRecord[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
-    let cancelled = false;
-    startTransition(() => {
-      void (async () => {
-        try {
-          const response = await fetch("/api/communities/search?q=&limit=100");
-          if (!response.ok) {
-            throw new Error("Unable to load communities.");
-          }
-          const data = (await response.json()) as { results: CommunitySearchRecord[] };
-          if (!cancelled) {
-            setCatalog(data.results);
-            setLoadError(null);
-          }
-        } catch {
-          if (!cancelled) {
-            setLoadError("Community search is temporarily unavailable.");
-            setCatalog([]);
-          }
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch("/api/communities/search?q=&limit=100", {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error("Unable to load communities.");
         }
-      })();
-    });
-    return () => {
-      cancelled = true;
-    };
+        const data = (await response.json()) as { results: CommunitySearchRecord[] };
+        startTransition(() => {
+          setCatalog(data.results);
+          setLoadError(null);
+        });
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        startTransition(() => {
+          setLoadError("Community search is temporarily unavailable.");
+          setCatalog([]);
+        });
+        void error;
+      }
+    })();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -128,14 +128,14 @@ export function CommunitySearch({
           aria-controls={listId}
           aria-autocomplete="list"
           className={cn(
-            "h-14 rounded-2xl border-border/80 bg-card pl-12 text-base shadow-sm md:text-base",
+            "h-14 rounded-none border-border/80 bg-card pl-12 text-base shadow-none md:text-base",
             inputClassName,
           )}
         />
       </div>
 
       <div className="mt-3 min-h-6 text-sm text-muted-foreground" aria-live="polite">
-        {catalog === null || isPending
+        {catalog === null
           ? "Loading communities…"
           : loadError
             ? loadError

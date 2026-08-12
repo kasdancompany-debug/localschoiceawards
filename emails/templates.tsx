@@ -92,10 +92,10 @@ const DEFINITIONS: Record<EmailTemplateKey, TemplateDefinition> = {
     ],
   },
   "campaign.business_nominated": {
-    title: (v) => `${v.businessName || "Your business"} was nominated`,
-    preview: () => "A customer nominated your business",
+    title: (v) => `You've been nominated${v.businessName ? `: ${v.businessName}` : ""}`,
+    preview: () => "You've been nominated in the Locals Choice Awards",
     body: (v) => [
-      `${v.businessName || "Your business"} received a nomination${v.categoryName ? ` for ${v.categoryName}` : ""}.`,
+      `Great news — ${v.businessName || "your business"} has been nominated${v.categoryName ? ` for ${v.categoryName}` : ""}${v.communityName ? ` in the ${v.communityName} Locals Choice Awards` : ""}.`,
       "Claim or manage your profile to stay involved during the campaign.",
     ],
   },

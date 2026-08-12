@@ -1,9 +1,13 @@
 import "server-only";
 
-import { createMissingBusinessSubmission } from "@/lib/businesses/service";
+import { createApprovedBusinessFromNomination, createMissingBusinessSubmission } from "@/lib/businesses/service";
 import { resolveCampaignState } from "@/lib/campaigns/state";
 import { createSupabaseAdminClient } from "@/lib/database/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/database/supabase/server";
+import {
+  sendBusinessNominatedEmail,
+  sendNominationReceivedEmail,
+} from "@/lib/email/nominations";
 import { env } from "@/lib/env/server";
 import { buildCommunityHostname } from "@/lib/communities/hostname";
 import {
@@ -90,11 +94,13 @@ async function loadBusinessLocation(locationId: string) {
       active,
       deleted_at,
       location_name,
+      email,
       businesses!inner (
         id,
         public_name,
         status,
-        deleted_at
+        deleted_at,
+        primary_email
       )
     `,
     )
@@ -136,11 +142,13 @@ export type CreateNominationResult =
 export async function createNomination(input: {
   campaign: Campaign;
   communityId: string;
+  communityName?: string;
   userId: string;
   email: string;
   emailConfirmed: boolean;
   campaignCategoryId: string;
   businessLocationId: string;
+  businessEmail?: string | null;
   ipAddress?: string | null;
 }): Promise<CreateNominationResult> {
   const campaignState = resolveCampaignState(input.campaign);
@@ -148,7 +156,13 @@ export async function createNomination(input: {
   const location = await loadBusinessLocation(input.businessLocationId);
 
   const business = location?.businesses as
-    | { id: string; public_name: string; status: string; deleted_at: string | null }
+    | {
+        id: string;
+        public_name: string;
+        status: string;
+        deleted_at: string | null;
+        primary_email: string | null;
+      }
     | null
     | undefined;
 
@@ -238,12 +252,41 @@ export async function createNomination(input: {
     businessLocationId: input.businessLocationId,
   });
 
+  const categoryName =
+    (category as { local_name?: string | null; master_categories?: { name?: string } | null } | null)
+      ?.local_name ||
+    (category as { master_categories?: { name?: string } | null } | null)?.master_categories?.name ||
+    "a category";
+  const businessName = business?.public_name || location?.location_name || "a local business";
+  const businessEmail =
+    input.businessEmail?.trim() || location?.email || business?.primary_email || null;
+
+  await sendNominationReceivedEmail({
+    to: input.email,
+    userId: input.userId,
+    businessName,
+    categoryName,
+    nominationId: data.id,
+    communityName: input.communityName ?? "",
+  });
+
+  if (businessEmail) {
+    await sendBusinessNominatedEmail({
+      to: businessEmail,
+      businessName,
+      categoryName,
+      nominationId: data.id,
+      communityName: input.communityName ?? "",
+    });
+  }
+
   return { ok: true, nominationId: data.id, status: data.status };
 }
 
 export async function createMissingBusinessNomination(input: {
   campaign: Campaign;
   communityId: string;
+  communityName?: string;
   userId: string;
   email: string;
   emailConfirmed: boolean;
@@ -252,8 +295,9 @@ export async function createMissingBusinessNomination(input: {
   address?: string | null;
   websiteUrl?: string | null;
   phone?: string | null;
+  businessEmail: string;
   ipAddress?: string | null;
-}): Promise<CreateNominationResult> {
+}): Promise<CreateNominationResult & { locationId?: string }> {
   const campaignState = resolveCampaignState(input.campaign);
   const category = await loadCategoryForCampaign(input.campaign.id, input.campaignCategoryId);
 
@@ -294,6 +338,20 @@ export async function createMissingBusinessNomination(input: {
     };
   }
 
+  const listing = await createApprovedBusinessFromNomination({
+    communityId: input.communityId,
+    campaignCategoryId: input.campaignCategoryId,
+    businessName: input.businessName,
+    address: input.address ?? null,
+    websiteUrl: input.websiteUrl ?? null,
+    phone: input.phone ?? null,
+    businessEmail: input.businessEmail,
+  });
+
+  if (!listing.ok) {
+    return { ok: false, reason: "server_error", message: listing.message };
+  }
+
   const submission = await createMissingBusinessSubmission({
     campaignId: input.campaign.id,
     submittedByUserId: input.userId,
@@ -305,19 +363,19 @@ export async function createMissingBusinessNomination(input: {
     submitterEmail: input.email,
   });
 
-  if (!submission.ok || !submission.id) {
-    return {
-      ok: false,
-      reason: "server_error",
-      message: submission.message ?? "Unable to submit missing business.",
-    };
+  if (submission.ok && submission.id) {
+    const admin = createSupabaseAdminClient();
+    await admin
+      .from("business_submission_requests")
+      .update({ status: "approved", reviewed_at: new Date().toISOString() })
+      .eq("id", submission.id);
   }
 
   const duplicate = await hasActiveNomination({
     campaignId: input.campaign.id,
     campaignCategoryId: input.campaignCategoryId,
     userId: input.userId,
-    businessSubmissionRequestId: submission.id,
+    businessLocationId: listing.locationId,
   });
   if (duplicate) {
     return {
@@ -333,10 +391,11 @@ export async function createMissingBusinessNomination(input: {
     .insert({
       campaign_id: input.campaign.id,
       campaign_category_id: input.campaignCategoryId,
-      business_submission_request_id: submission.id,
+      business_location_id: listing.locationId,
+      business_submission_request_id: submission.id ?? null,
       user_id: input.userId,
       verified_email_hash: hashVerifiedEmail(input.email),
-      status: "pending_business_moderation",
+      status: nominationStatusForTarget(true),
       source: "web",
     })
     .select("*")
@@ -349,10 +408,39 @@ export async function createMissingBusinessNomination(input: {
   await recordNominationEvent(data.id, "created", {
     source: "web",
     missingBusiness: true,
-    submissionId: submission.id,
+    submissionId: submission.id ?? null,
+    businessLocationId: listing.locationId,
   });
 
-  return { ok: true, nominationId: data.id, status: data.status };
+  const categoryName =
+    (category as { local_name?: string | null; master_categories?: { name?: string } | null } | null)
+      ?.local_name ||
+    (category as { master_categories?: { name?: string } | null } | null)?.master_categories?.name ||
+    "a category";
+
+  await sendNominationReceivedEmail({
+    to: input.email,
+    userId: input.userId,
+    businessName: input.businessName,
+    categoryName,
+    nominationId: data.id,
+    communityName: input.communityName ?? "",
+  });
+
+  await sendBusinessNominatedEmail({
+    to: input.businessEmail,
+    businessName: input.businessName,
+    categoryName,
+    nominationId: data.id,
+    communityName: input.communityName ?? "",
+  });
+
+  return {
+    ok: true,
+    nominationId: data.id,
+    status: data.status,
+    locationId: listing.locationId,
+  };
 }
 
 export async function listUserNominations(input: {

@@ -58,6 +58,12 @@ export async function getCampaignByCommunityYear(
 }
 
 export async function listCampaignsForCommunity(communityId: string): Promise<Campaign[]> {
+  if (communityId.startsWith("pilot-")) {
+    const { getPilotCampaignForCommunity } = await import("@/lib/pilot/directory-catalog");
+    const pilot = getPilotCampaignForCommunity(communityId);
+    return pilot ? [pilot] : [];
+  }
+
   try {
     const supabase = await createSupabaseServerClient();
     const query = supabase

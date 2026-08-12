@@ -19,6 +19,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
         brandLabel="Admin"
         navItems={[
           { href: "/admin", label: "Dashboard" },
+          { href: "/admin/analytics", label: "Analytics" },
           { href: "/admin/orders", label: "Orders" },
           { href: "/admin/notifications", label: "Notifications" },
           { href: "/admin/fulfillment", label: "Fulfillment" },

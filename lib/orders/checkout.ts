@@ -36,16 +36,22 @@ function personalizationDescription(snapshot: Record<string, unknown>): string |
 }
 
 export async function startStripeCheckout(input: {
-  userId: string;
+  userId?: string | null;
   customerEmail: string;
   clientTotalCents?: number | null;
+  returnBaseUrl?: string;
 }): Promise<StartCheckoutResult> {
-  const revalidated = await revalidateCartBeforeCheckout({ userId: input.userId });
+  const email = input.customerEmail.trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    return { ok: false, message: "Enter a valid email for your receipt." };
+  }
+
+  const revalidated = await revalidateCartBeforeCheckout({ userId: input.userId ?? null });
   if (!revalidated.ok) {
     return { ok: false, message: revalidated.message };
   }
 
-  const { cart, lines } = await listCartLines({ userId: input.userId });
+  const { cart, lines } = await listCartLines({ userId: input.userId ?? null });
   if (!lines.length) {
     return { ok: false, message: "Your cart is empty." };
   }
@@ -168,7 +174,7 @@ export async function startStripeCheckout(input: {
     .from("orders")
     .insert({
       order_number: orderNumberData,
-      user_id: input.userId,
+      user_id: input.userId ?? null,
       business_id: businessId,
       cart_id: cart.id,
       currency_code: cart.currencyCode,
@@ -183,7 +189,7 @@ export async function startStripeCheckout(input: {
       shipping_method_snapshot: toJson(shippingMethodSnapshot),
       shipping_address_snapshot: toJson({}),
       billing_address_snapshot: toJson({}),
-      customer_email: input.customerEmail,
+      customer_email: email,
     })
     .select("*")
     .maybeSingle();
@@ -224,7 +230,7 @@ export async function startStripeCheckout(input: {
     }
   }
 
-  const appUrl = clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  const appUrl = (input.returnBaseUrl || clientEnv.NEXT_PUBLIC_APP_URL).replace(/\/$/, "");
   const stripe = getStripeClient();
   const lineItems = buildStripeCheckoutLineItems({
     currencyCode: cart.currencyCode,
@@ -247,7 +253,7 @@ export async function startStripeCheckout(input: {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      customer_email: input.customerEmail,
+      customer_email: email,
       client_reference_id: orderRow.id,
       line_items: lineItems,
       automatic_tax: { enabled: true },
@@ -296,7 +302,7 @@ export async function startStripeCheckout(input: {
   }
 }
 
-export async function loadCheckoutPreview(userId: string): Promise<
+export async function loadCheckoutPreview(userId?: string | null): Promise<
   | {
       ok: true;
       orderPreview: {
@@ -319,7 +325,7 @@ export async function loadCheckoutPreview(userId: string): Promise<
     }
   | { ok: false; message: string }
 > {
-  const { cart, lines } = await listCartLines({ userId });
+  const { cart, lines } = await listCartLines({ userId: userId ?? null });
   if (!lines.length) {
     return { ok: false, message: "Your cart is empty." };
   }

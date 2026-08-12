@@ -3,12 +3,12 @@ import { z } from "zod";
 export const addToCartSchema = z.object({
   productVariantId: z.string().uuid(),
   awardEligibilityId: z.string().uuid().optional().or(z.literal("")),
-  quantity: z.coerce.number().int().min(1).max(20),
+  quantity: z.coerce.number().int().min(1).max(50),
 });
 
 export const updateCartItemSchema = z.object({
   cartItemId: z.string().uuid(),
-  quantity: z.coerce.number().int().min(0).max(20),
+  quantity: z.coerce.number().int().min(0).max(50),
 });
 
 export const shippingDestinationSchema = z.object({

@@ -10,6 +10,7 @@ import {
   getCurrentCommunity,
 } from "@/lib/communities/current";
 import { buildCommunityMetadata } from "@/lib/communities/metadata";
+import { usesPathCommunityUrls } from "@/lib/communities/path-mode";
 import { env } from "@/lib/env/server";
 
 type CommunityLayoutProps = {
@@ -32,6 +33,14 @@ export default async function CommunityLayout({ children }: CommunityLayoutProps
   const headerStore = await headers();
   const subdomainHint = headerStore.get(COMMUNITY_SUBDOMAIN_HEADER);
   const centralSiteUrl = env.NEXT_PUBLIC_APP_URL;
+  const pathPrefix =
+    community && usesPathCommunityUrls() ? `/c/${community.subdomain}` : "";
+
+  const withPrefix = (path: string) => {
+    if (!pathPrefix) return path;
+    if (path === "/") return pathPrefix;
+    return `${pathPrefix}${path}`;
+  };
 
   if (!community) {
     return (
@@ -60,22 +69,24 @@ export default async function CommunityLayout({ children }: CommunityLayoutProps
   }
 
   const navItems = [
-    { href: "/", label: "Home" },
-    { href: "/categories", label: "Categories" },
-    { href: "/search", label: "Search" },
-    { href: "/how-it-works", label: "How it works" },
-    { href: "/rules", label: "Rules" },
-    { href: "/winners", label: "Winners" },
+    { href: withPrefix("/"), label: "Home" },
+    { href: withPrefix("/categories"), label: "Categories" },
+    { href: withPrefix("/search"), label: "Search" },
+    { href: withPrefix("/order"), label: "Order & promote" },
+    { href: withPrefix("/how-it-works"), label: "How it works" },
+    { href: withPrefix("/rules"), label: "Rules" },
+    { href: withPrefix("/winners"), label: "Winners" },
+    { href: withPrefix("/cart"), label: "Cart" },
   ];
 
   return (
     <>
       <SiteHeader
-        brandHref="/"
+        brandHref={withPrefix("/")}
         brandLabel={community.name}
         brandEyebrow="Locals Choice Awards"
         navItems={navItems}
-        cta={{ href: "/categories", label: "Browse categories" }}
+        cta={{ href: withPrefix("/order"), label: "Order awards" }}
       />
       <main className="flex-1">{children}</main>
       <SiteFooter
@@ -85,16 +96,17 @@ export default async function CommunityLayout({ children }: CommunityLayoutProps
           {
             title: "This community",
             links: [
-              { href: "/", label: "Home" },
-              { href: "/categories", label: "Categories" },
-              { href: "/winners", label: "Winners" },
-              { href: "/rules", label: "Rules" },
+              { href: withPrefix("/"), label: "Home" },
+              { href: withPrefix("/categories"), label: "Categories" },
+              { href: withPrefix("/order"), label: "Order & promote" },
+              { href: withPrefix("/winners"), label: "Winners" },
+              { href: withPrefix("/rules"), label: "Rules" },
             ],
           },
           {
             title: "Platform",
             links: [
-              { href: "/how-it-works", label: "How it works" },
+              { href: withPrefix("/how-it-works"), label: "How it works" },
               { href: `${centralSiteUrl}/communities`, label: "All communities" },
             ],
           },

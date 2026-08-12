@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { CheckoutClient } from "@/components/orders/checkout-client";
 import { PageIntro, PageShell } from "@/components/layout/page-shell";
 import { buttonVariants } from "@/components/ui/button";
-import { requireUser } from "@/lib/auth/session";
+import { getAuthenticatedSession } from "@/lib/auth/session";
 import { loadCheckoutPreview } from "@/lib/orders/checkout";
 import { toRoute } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -16,8 +16,8 @@ export const metadata: Metadata = {
 };
 
 export default async function CheckoutPage() {
-  const session = await requireUser({ next: "/checkout" });
-  const preview = await loadCheckoutPreview(session.userId);
+  const session = await getAuthenticatedSession();
+  const preview = await loadCheckoutPreview(session?.userId ?? null);
 
   if (!preview.ok) {
     redirect(toRoute("/cart"));
@@ -29,7 +29,7 @@ export default async function CheckoutPage() {
         <PageIntro
           eyebrow="Secure payment"
           title="Checkout"
-          description="Confirm your personalized products and separate shipping charge, then continue to Stripe. Payment is confirmed only after a verified webhook — not when a success page loads."
+          description="No account required — enter your email, confirm shipping, and pay with Stripe. Payment is confirmed only after a verified webhook."
         />
         <Link href={toRoute("/cart")} className={cn(buttonVariants({ variant: "outline" }))}>
           Edit cart
@@ -39,6 +39,8 @@ export default async function CheckoutPage() {
         preview={preview.orderPreview}
         canCheckout={preview.orderPreview.shippingReady}
         blockedReason={preview.orderPreview.shippingBlockedReason ?? undefined}
+        customerEmail={session?.email ?? ""}
+        requireEmail={!session}
       />
     </PageShell>
   );

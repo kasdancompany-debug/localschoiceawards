@@ -1,14 +1,11 @@
 import "server-only";
 
-import { buildCommunityHostname } from "@/lib/communities/hostname";
-import { env } from "@/lib/env/server";
+import { buildPublicCommunityUrl } from "@/lib/communities/path-mode";
 import type { Community } from "@/types/community";
 import type { Metadata } from "next";
 
 export function getCommunityCanonicalUrl(community: Community, pathname = "/"): string {
-  const root = env.NEXT_PUBLIC_ROOT_DOMAIN;
-  const protocol = root.includes("localhost") ? "http" : "https";
-  const origin = buildCommunityHostname(community.subdomain, root, protocol);
+  const origin = buildPublicCommunityUrl(community.subdomain);
   const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
   return `${origin}${normalizedPath === "/" ? "" : normalizedPath}`;
 }
@@ -38,5 +35,14 @@ export function buildCommunityMetadata(community: Community, options?: {
       locale: community.country.defaultLocale.replace("-", "_"),
       type: "website",
     },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+    robots:
+      community.marketStatus === "archived"
+        ? { index: false, follow: true }
+        : { index: true, follow: true },
   };
 }

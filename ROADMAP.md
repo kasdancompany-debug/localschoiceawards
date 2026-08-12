@@ -57,6 +57,7 @@ Phased delivery plan for Locals Choice Awards after the production foundation.
 ## Phase 6 — Operations and scale
 
 - [x] Admin notification dashboard (queue, retries, bounces, template preview)
+- [x] Privacy-conscious analytics & financial reporting (business + admin dashboards, CSV export)
 - Admin moderation queues and audit logs
 - PostHog funnels and Sentry release health
 - Performance budgets for thousands of communities

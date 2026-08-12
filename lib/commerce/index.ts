@@ -12,7 +12,7 @@ export {
   postalCodeMatchesPatterns,
   productRequiresShipping,
 } from "@/lib/commerce/rules";
-export { getCatalogProductBySlug, listActiveCatalogProducts } from "@/lib/commerce/catalog";
+export { getCatalogProductBySlug, listActiveCatalogProducts, getBusinessPromotionProduct, BUSINESS_PROMOTION_SLUG } from "@/lib/commerce/catalog";
 export {
   addItemToCart,
   getOrCreateOpenCart,

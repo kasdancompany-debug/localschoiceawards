@@ -18,6 +18,7 @@ const serverOnlySchema = z.object({
   EMAIL_FROM: z.string().email(),
   NOTIFICATIONS_CRON_SECRET: z.string().min(1).optional().or(z.literal("")),
   RESEND_WEBHOOK_SECRET: z.string().min(1).optional().or(z.literal("")),
+  UNSUBSCRIBE_TOKEN_SECRET: z.string().min(1).optional().or(z.literal("")),
   TURNSTILE_SECRET_KEY: z.string().min(1),
   SENTRY_DSN: z.string().url().optional().or(z.literal("")),
   SENTRY_AUTH_TOKEN: z.string().optional().or(z.literal("")),
@@ -45,6 +46,7 @@ function placeholderServerOnlyEnv(): z.infer<typeof serverOnlySchema> {
     EMAIL_FROM: "noreply@localschoiceawards.com",
     NOTIFICATIONS_CRON_SECRET: "notifications-cron-placeholder",
     RESEND_WEBHOOK_SECRET: "resend-webhook-placeholder",
+    UNSUBSCRIBE_TOKEN_SECRET: "unsubscribe-token-placeholder",
     TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
     SENTRY_DSN: "",
     SENTRY_AUTH_TOKEN: "",
@@ -65,6 +67,7 @@ function readServerOnlyEnv(): Record<string, string | undefined> {
     EMAIL_FROM: process.env.EMAIL_FROM,
     NOTIFICATIONS_CRON_SECRET: process.env.NOTIFICATIONS_CRON_SECRET,
     RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
+    UNSUBSCRIBE_TOKEN_SECRET: process.env.UNSUBSCRIBE_TOKEN_SECRET,
     TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
     SENTRY_DSN: process.env.SENTRY_DSN,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
@@ -78,7 +81,8 @@ function readServerOnlyEnv(): Record<string, string | undefined> {
 function createServerEnv(): ServerEnv {
   const skipValidation =
     process.env.SKIP_ENV_VALIDATION === "true" ||
-    process.env.NEXT_PHASE === "phase-production-build";
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.VERCEL === "1";
   const raw = readServerOnlyEnv();
   const parsed = serverOnlySchema.safeParse(raw);
 
@@ -87,6 +91,11 @@ function createServerEnv(): ServerEnv {
   }
 
   if (skipValidation) {
+    if (process.env.NODE_ENV === "production" && process.env.VERCEL === "1") {
+      console.error(
+        `[env] Invalid server environment variables; using safe placeholders.\n${formatZodError(parsed.error)}`,
+      );
+    }
     return { ...clientEnv, ...placeholderServerOnlyEnv() };
   }
 

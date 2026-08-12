@@ -5,6 +5,7 @@ import { toRoute } from "@/lib/routes";
 
 const sections = [
   { href: "", label: "Overview" },
+  { href: "analytics", label: "Analytics" },
   { href: "profile", label: "Profile" },
   { href: "locations", label: "Locations" },
   { href: "team", label: "Team" },

@@ -7,7 +7,8 @@ export type VotingRateLimitAction = "vote";
 export type AppRateLimitAction =
   | AuthRateLimitAction
   | NominationRateLimitAction
-  | VotingRateLimitAction;
+  | VotingRateLimitAction
+  | "analytics_track";
 
 export type RateLimitConfig = {
   limit: number;
@@ -35,10 +36,15 @@ export const VOTING_RATE_LIMITS: Record<VotingRateLimitAction, RateLimitConfig> 
   vote: { limit: 40, windowSeconds: 60 * 60 },
 };
 
+export const ANALYTICS_RATE_LIMITS: Record<"analytics_track", RateLimitConfig> = {
+  analytics_track: { limit: 120, windowSeconds: 60 },
+};
+
 export const APP_RATE_LIMITS: Record<AppRateLimitAction, RateLimitConfig> = {
   ...AUTH_RATE_LIMITS,
   ...NOMINATION_RATE_LIMITS,
   ...VOTING_RATE_LIMITS,
+  ...ANALYTICS_RATE_LIMITS,
 };
 
 /** Pure helper for unit tests — evaluates whether an attempt count is allowed. */

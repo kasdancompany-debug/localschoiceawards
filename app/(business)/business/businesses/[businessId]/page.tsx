@@ -14,6 +14,7 @@ type BusinessDetailProps = {
 };
 
 const sections = [
+  { href: "analytics", label: "Analytics" },
   { href: "profile", label: "Profile" },
   { href: "locations", label: "Locations" },
   { href: "team", label: "Team" },

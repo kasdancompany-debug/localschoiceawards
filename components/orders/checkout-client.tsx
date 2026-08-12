@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { startCheckoutAction, type OrderActionState } from "@/lib/orders/actions";
 import { formatMoney } from "@/lib/commerce/rules";
 import { toRoute } from "@/lib/routes";
@@ -32,9 +34,19 @@ type CheckoutClientProps = {
   };
   canCheckout: boolean;
   blockedReason?: string;
+  customerEmail?: string;
+  requireEmail?: boolean;
+  returnPathPrefix?: string;
 };
 
-export function CheckoutClient({ preview, canCheckout, blockedReason }: CheckoutClientProps) {
+export function CheckoutClient({
+  preview,
+  canCheckout,
+  blockedReason,
+  customerEmail = "",
+  requireEmail = false,
+  returnPathPrefix = "",
+}: CheckoutClientProps) {
   const [state, action, pending] = useActionState(startCheckoutAction, initial);
   const currency = preview.currencyCode as CommerceCurrency;
 
@@ -92,8 +104,28 @@ export function CheckoutClient({ preview, canCheckout, blockedReason }: Checkout
         </p>
 
         {canCheckout ? (
-          <form action={action}>
+          <form action={action} className="space-y-4">
             <input type="hidden" name="clientTotalCents" value={preview.totalBeforeTaxCents} />
+            <input type="hidden" name="returnPathPrefix" value={returnPathPrefix} />
+            {requireEmail ? (
+              <div className="space-y-2">
+                <Label htmlFor="customerEmail">Email for receipt</Label>
+                <Input
+                  id="customerEmail"
+                  name="customerEmail"
+                  type="email"
+                  required
+                  defaultValue={customerEmail}
+                  placeholder="you@business.com"
+                  autoComplete="email"
+                />
+                <p className="text-xs text-muted-foreground">
+                  No password needed. We use this email for your Stripe receipt and order updates.
+                </p>
+              </div>
+            ) : (
+              <input type="hidden" name="customerEmail" value={customerEmail} />
+            )}
             <Button type="submit" className="w-full" disabled={pending}>
               {pending ? "Starting Checkout…" : "Continue to Stripe Checkout"}
             </Button>
@@ -101,7 +133,10 @@ export function CheckoutClient({ preview, canCheckout, blockedReason }: Checkout
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-destructive">{blockedReason}</p>
-            <Link href={toRoute("/cart")} className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
+            <Link
+              href={toRoute("/cart")}
+              className={cn(buttonVariants({ variant: "outline" }), "w-full")}
+            >
               Return to cart
             </Link>
           </div>

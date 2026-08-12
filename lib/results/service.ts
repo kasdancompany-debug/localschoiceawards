@@ -817,6 +817,7 @@ export async function listPublicBusinessWins(input: {
       return [
         {
           resultId: row.result_id,
+          eligibilityId: row.id,
           placement: row.placement,
           tied: result.tied,
           validVoteCount: publicVoteCount(

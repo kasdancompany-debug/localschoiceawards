@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
 
 type GlobalErrorProps = {
@@ -19,75 +18,103 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
         style={{
           margin: 0,
           minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: "Georgia, serif",
-          background: "#f7f4ef",
-          color: "#1a1a1a",
-          padding: "1.5rem",
+          fontFamily:
+            '"Manrope", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif',
+          color: "#1c2430",
+          background:
+            "radial-gradient(ellipse 80% 50% at 10% -10%, rgba(120, 190, 185, 0.35), transparent 55%), radial-gradient(ellipse 60% 40% at 90% 0%, rgba(140, 160, 200, 0.28), transparent 50%), #f4f8fa",
         }}
       >
-        <div
+        <main
           style={{
-            width: "100%",
-            maxWidth: "32rem",
-            border: "1px solid #ddd4c6",
-            borderRadius: "1rem",
-            background: "#fffdf9",
-            padding: "2rem",
-            textAlign: "center",
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1.5rem",
           }}
         >
-          <p style={{ letterSpacing: "0.16em", textTransform: "uppercase", fontSize: "0.8rem" }}>
-            Something went wrong
-          </p>
-          <h1 style={{ fontSize: "2rem", margin: "0.75rem 0" }}>We hit an unexpected error</h1>
-          <p style={{ color: "#5c574f", lineHeight: 1.5 }}>
-            The Locals Choice Awards team has been notified when monitoring is enabled. You can try
-            again, or return home.
-          </p>
-          {error.digest ? (
-            <p style={{ marginTop: "1rem", fontFamily: "monospace", fontSize: "0.75rem" }}>
-              Ref: {error.digest}
+          <div style={{ width: "100%", maxWidth: "36rem" }}>
+            <p
+              style={{
+                margin: 0,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                color: "#5b6b7a",
+              }}
+            >
+              Locals Choice Awards
             </p>
-          ) : null}
-          <div
-            style={{
-              marginTop: "2rem",
-              display: "flex",
-              gap: "0.75rem",
-              justifyContent: "center",
-            }}
-          >
-            <button
-              type="button"
-              onClick={reset}
+            <h1
               style={{
-                border: 0,
-                borderRadius: "0.5rem",
-                padding: "0.65rem 1rem",
-                background: "#1a1a1a",
-                color: "#fff",
-                cursor: "pointer",
+                margin: "0.85rem 0 0",
+                fontFamily: '"Fraunces", Georgia, serif',
+                fontSize: "clamp(2rem, 5vw, 3rem)",
+                fontWeight: 600,
+                letterSpacing: "-0.02em",
+                lineHeight: 1.1,
               }}
             >
-              Try again
-            </button>
-            <Link
-              href="/"
+              We hit a temporary snag
+            </h1>
+            <p
               style={{
-                border: "1px solid #ddd4c6",
-                borderRadius: "0.5rem",
-                padding: "0.65rem 1rem",
-                textDecoration: "none",
-                color: "#1a1a1a",
+                margin: "1rem 0 0",
+                fontSize: "1.05rem",
+                lineHeight: 1.6,
+                color: "#4d5b68",
               }}
             >
-              Go home
-            </Link>
+              This page couldn&apos;t load just now. Try again — your community awards experience
+              will be right back.
+            </p>
+            {error.digest ? (
+              <p
+                style={{
+                  marginTop: "1rem",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                  fontSize: "0.75rem",
+                  color: "#6b7a88",
+                }}
+              >
+                Ref: {error.digest}
+              </p>
+            ) : null}
+            <div style={{ marginTop: "2rem", display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
+              <button
+                type="button"
+                onClick={reset}
+                style={{
+                  border: 0,
+                  borderRadius: "0.75rem",
+                  padding: "0.85rem 1.25rem",
+                  background: "#1f3d45",
+                  color: "#f7fbfc",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Try again
+              </button>
+              <a
+                href="/"
+                style={{
+                  border: "1px solid #c9d5dc",
+                  borderRadius: "0.75rem",
+                  padding: "0.85rem 1.25rem",
+                  textDecoration: "none",
+                  color: "#1f3d45",
+                  fontWeight: 600,
+                  background: "rgba(255,255,255,0.7)",
+                }}
+              >
+                Go home
+              </a>
+            </div>
           </div>
-        </div>
+        </main>
       </body>
     </html>
   );

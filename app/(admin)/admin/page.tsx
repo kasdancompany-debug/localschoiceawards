@@ -29,6 +29,23 @@ export default async function AdminHomePage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Analytics & financials</CardTitle>
+          <CardDescription>
+            Community comparison, funnel conversion, claimed-business KPIs, and contribution margin.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link
+            href={toRoute("/admin/analytics")}
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Open analytics dashboard
+          </Link>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Notifications</CardTitle>
           <CardDescription>
             Event queue, Resend deliveries, retries, bounces, complaints, and template preview.
